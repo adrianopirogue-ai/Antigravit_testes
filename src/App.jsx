@@ -4,11 +4,15 @@ import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import Catalog from './pages/Catalog';
 import AdminDashboard from './pages/Admin/Dashboard';
+import ForgotPassword from './pages/Admin/ForgotPassword';
+import ResetPassword from './pages/Admin/ResetPassword';
 
 import Cart from './pages/Cart';
 
 function App() {
     const [cartItems, setCartItems] = useState([]);
+
+    console.log('🚀 App carregado. Base URL:', import.meta.env.BASE_URL);
 
     const addToCart = (product, quantity = 1) => {
         const existingItemIndex = cartItems.findIndex(item => item.id === product.id);
@@ -25,7 +29,7 @@ function App() {
     };
 
     return (
-        <Router>
+        <Router basename={import.meta.env.BASE_URL}>
             <div style={{ minHeight: '100vh', paddingBottom: '2rem' }}>
                 <Navbar cartCount={cartItems.length} />
 
@@ -34,6 +38,8 @@ function App() {
                     <Route path="/catalog" element={<Catalog addToCart={addToCart} />} />
                     <Route path="/cart" element={<Cart cartItems={cartItems} setCartItems={setCartItems} />} />
                     <Route path="/admin" element={<AdminDashboard />} />
+                    <Route path="/admin/forgot-password" element={<ForgotPassword />} />
+                    <Route path="/admin/reset-password" element={<ResetPassword />} />
                 </Routes>
             </div>
         </Router>
