@@ -186,38 +186,42 @@ const CustomerPortal = () => {
 
         setSaving(true);
         try {
+            const email = registerData.email.trim();
+            const metadata = {
+                name: registerData.name.trim(),
+                cpf_cnpj: registerData.cpf_cnpj.trim(),
+                phone1: registerData.phone1.trim(),
+                phone2: registerData.phone2.trim() || null,
+                cep: registerData.cep.trim(),
+                address: registerData.address.trim(),
+                address_number: registerData.address_number.trim(),
+                address_type: registerData.address_type.trim(),
+                municipio: registerData.municipio.trim(),
+                estado: registerData.estado.trim(),
+                reference: registerData.reference.trim() || null
+            };
+
             const { data, error } = await supabase.auth.signUp({
-                email: registerData.email.trim(),
+                email,
                 password: registerData.password,
                 options: {
                     emailRedirectTo: `${window.location.origin}${baseUrl}cliente`,
-                    data: {
-                        name: registerData.name.trim(),
-                        cpf_cnpj: registerData.cpf_cnpj.trim()
-                    }
+                    data: metadata
                 }
             });
 
             if (error) throw error;
 
-            if (data.session) {
+            const userId = data.session?.user?.id ?? data.user?.id ?? null;
+
+            if (data.session && userId) {
                 const { error: insertError } = await supabase
                     .from('customers')
-                    .insert([{
-                        user_id: data.session.user.id,
-                        name: registerData.name.trim(),
-                        email: registerData.email.trim(),
-                        cpf_cnpj: registerData.cpf_cnpj.trim(),
-                        phone1: registerData.phone1.trim(),
-                        phone2: registerData.phone2.trim() || null,
-                        cep: registerData.cep.trim(),
-                        address: registerData.address.trim(),
-                        address_number: registerData.address_number.trim(),
-                        address_type: registerData.address_type.trim(),
-                        municipio: registerData.municipio.trim(),
-                        estado: registerData.estado.trim(),
-                        reference: registerData.reference.trim() || null
-                    }]);
+                    .upsert([{
+                        user_id: userId,
+                        email,
+                        ...metadata
+                    }], { onConflict: 'user_id' });
 
                 if (insertError) throw insertError;
 

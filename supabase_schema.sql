@@ -178,6 +178,73 @@ $$;
 REVOKE ALL ON FUNCTION public.get_email_by_cpf(text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.get_email_by_cpf(text) TO anon, authenticated;
 
+-- Criar cliente automaticamente apos cadastro (usa metadata do usuario)
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+DROP FUNCTION IF EXISTS public.handle_new_customer();
+
+CREATE OR REPLACE FUNCTION public.handle_new_customer()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_name text := trim(coalesce(new.raw_user_meta_data->>'name', ''));
+  v_cpf_cnpj text := trim(coalesce(new.raw_user_meta_data->>'cpf_cnpj', ''));
+  v_phone1 text := trim(coalesce(new.raw_user_meta_data->>'phone1', ''));
+  v_phone2 text := nullif(trim(coalesce(new.raw_user_meta_data->>'phone2', '')), '');
+  v_cep text := trim(coalesce(new.raw_user_meta_data->>'cep', ''));
+  v_address text := trim(coalesce(new.raw_user_meta_data->>'address', ''));
+  v_address_number text := trim(coalesce(new.raw_user_meta_data->>'address_number', ''));
+  v_address_type text := trim(coalesce(new.raw_user_meta_data->>'address_type', ''));
+  v_municipio text := trim(coalesce(new.raw_user_meta_data->>'municipio', ''));
+  v_estado text := trim(coalesce(new.raw_user_meta_data->>'estado', ''));
+  v_reference text := nullif(trim(coalesce(new.raw_user_meta_data->>'reference', '')), '');
+  v_email text := trim(coalesce(new.email, ''));
+BEGIN
+  IF v_name = '' OR v_email = '' OR v_cpf_cnpj = '' OR v_phone1 = '' OR v_cep = '' OR v_address = '' OR v_address_number = '' OR v_address_type = '' OR v_municipio = '' OR v_estado = '' THEN
+    RETURN NEW;
+  END IF;
+
+  INSERT INTO public.customers (
+    user_id,
+    name,
+    email,
+    cpf_cnpj,
+    phone1,
+    phone2,
+    cep,
+    address,
+    address_number,
+    address_type,
+    municipio,
+    estado,
+    reference
+  ) VALUES (
+    new.id,
+    v_name,
+    v_email,
+    v_cpf_cnpj,
+    v_phone1,
+    v_phone2,
+    v_cep,
+    v_address,
+    v_address_number,
+    v_address_type,
+    v_municipio,
+    v_estado,
+    v_reference
+  )
+  ON CONFLICT (user_id) DO NOTHING;
+
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER on_auth_user_created
+AFTER INSERT ON auth.users
+FOR EACH ROW EXECUTE FUNCTION public.handle_new_customer();
+
 -- Inserir dados de exemplo (medicamentos do mock atual)
 INSERT INTO medicines (name, dosage, price, wholesale_price, type, description, stock, image_url, requires_prescription) VALUES
 ('Dipirona Sódica', '500mg', 4.50, 2.90, 'Analgesic', 'Analgésico e antitérmico.', 1500, 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&q=80&w=400', false),
