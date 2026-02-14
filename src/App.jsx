@@ -6,6 +6,9 @@ import Catalog from './pages/Catalog';
 import AdminDashboard from './pages/Admin/Dashboard';
 import ForgotPassword from './pages/Admin/ForgotPassword';
 import ResetPassword from './pages/Admin/ResetPassword';
+import CustomerPortal from './pages/Customer/Portal';
+import CustomerForgotPassword from './pages/Customer/ForgotPassword';
+import CustomerResetPassword from './pages/Customer/ResetPassword';
 
 import Cart from './pages/Cart';
 
@@ -41,6 +44,9 @@ function App() {
                     <Route path="/admin" element={<AdminDashboard />} />
                     <Route path="/admin/forgot-password" element={<ForgotPassword />} />
                     <Route path="/admin/reset-password" element={<ResetPassword />} />
+                    <Route path="/cliente" element={<CustomerPortal />} />
+                    <Route path="/cliente/forgot-password" element={<CustomerForgotPassword />} />
+                    <Route path="/cliente/reset-password" element={<CustomerResetPassword />} />
                 </Routes>
             </div>
         </Router>

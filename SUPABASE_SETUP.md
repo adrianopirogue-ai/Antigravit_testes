@@ -40,6 +40,7 @@
 2. Clique em **"New query"**
 3. Cole o SQL que está no arquivo `supabase_schema.sql` (será criado em breve)
 4. Clique em **"Run"**
+5. Esse script cria também a tabela `customers` e a função `get_email_by_cpf` para login por CPF/CNPJ.
 
 ## Passo 5: Storage para imagens
 
@@ -57,6 +58,15 @@ create policy "Authenticated upload medicine images"
   on storage.objects for insert
   with check (bucket_id = 'medicine-images' and auth.role() = 'authenticated');
 ```
+
+## Passo 6: URLs de autenticacao
+
+1. Supabase -> **Authentication** -> **URL Configuration**
+2. Configure:
+   - **Site URL**: `https://adrianopirogue-ai.github.io/Antigravit_testes`
+   - **Additional Redirect URLs**:
+     - `https://adrianopirogue-ai.github.io/Antigravit_testes/admin/reset-password`
+     - `https://adrianopirogue-ai.github.io/Antigravit_testes/cliente/reset-password`
 
 ## Próximos Passos
 

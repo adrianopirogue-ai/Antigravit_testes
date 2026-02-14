@@ -17,6 +17,26 @@ CREATE TABLE IF NOT EXISTS medicines (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+-- Tabela de Clientes
+CREATE TABLE IF NOT EXISTS customers (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL UNIQUE,
+  cpf_cnpj TEXT NOT NULL UNIQUE,
+  phone1 TEXT NOT NULL,
+  phone2 TEXT,
+  cep TEXT NOT NULL,
+  address TEXT NOT NULL,
+  address_number TEXT NOT NULL,
+  address_type TEXT NOT NULL,
+  municipio TEXT NOT NULL,
+  estado TEXT NOT NULL,
+  reference TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
 -- Tabela de Pedidos
 CREATE TABLE IF NOT EXISTS orders (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -57,6 +77,7 @@ $$ language 'plpgsql';
 -- Remover triggers existentes se houver
 DROP TRIGGER IF EXISTS update_medicines_updated_at ON medicines;
 DROP TRIGGER IF EXISTS update_orders_updated_at ON orders;
+DROP TRIGGER IF EXISTS update_customers_updated_at ON customers;
 
 CREATE TRIGGER update_medicines_updated_at BEFORE UPDATE ON medicines
 FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -64,10 +85,14 @@ FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_orders_updated_at BEFORE UPDATE ON orders
 FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+CREATE TRIGGER update_customers_updated_at BEFORE UPDATE ON customers
+FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 -- Row Level Security (RLS) - Segurança
 ALTER TABLE medicines ENABLE ROW LEVEL SECURITY;
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
 
 -- Remover políticas existentes (se houver)
 DROP POLICY IF EXISTS "Medicamentos são visíveis para todos" ON medicines;
@@ -75,6 +100,9 @@ DROP POLICY IF EXISTS "Apenas usuários autenticados podem modificar medicamento
 DROP POLICY IF EXISTS "Usuários veem apenas seus pedidos" ON orders;
 DROP POLICY IF EXISTS "Usuários podem criar pedidos" ON orders;
 DROP POLICY IF EXISTS "Acesso a itens via pedido" ON order_items;
+DROP POLICY IF EXISTS "Clientes podem ver seu perfil" ON customers;
+DROP POLICY IF EXISTS "Clientes podem criar perfil" ON customers;
+DROP POLICY IF EXISTS "Clientes podem atualizar perfil" ON customers;
 
 -- Políticas de Acesso (RLS Policies)
 
@@ -106,6 +134,32 @@ CREATE POLICY "Acesso a itens via pedido"
       AND orders.user_id = auth.uid()
     )
   );
+
+-- Clientes: acesso apenas ao proprio perfil
+CREATE POLICY "Clientes podem ver seu perfil"
+  ON customers FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Clientes podem criar perfil"
+  ON customers FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Clientes podem atualizar perfil"
+  ON customers FOR UPDATE
+  USING (auth.uid() = user_id);
+
+-- Funcao para login por CPF/CNPJ (retorna email)
+CREATE OR REPLACE FUNCTION public.get_email_by_cpf(p_cpf text)
+RETURNS text
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT email FROM public.customers WHERE cpf_cnpj = p_cpf LIMIT 1;
+$$;
+
+REVOKE ALL ON FUNCTION public.get_email_by_cpf(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.get_email_by_cpf(text) TO anon, authenticated;
 
 -- Inserir dados de exemplo (medicamentos do mock atual)
 INSERT INTO medicines (name, dosage, price, wholesale_price, type, description, stock, image_url, requires_prescription) VALUES

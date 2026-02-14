@@ -20,6 +20,7 @@ const Navbar = ({ cartCount }) => {
                     <div style={{ display: 'none', gap: '2rem', alignItems: 'center' }} className="desktop-menu">
                         <Link to="/" className="nav-link">Início</Link>
                         <Link to="/catalog" className="nav-link">Catálogo</Link>
+                        <Link to="/cliente" className="nav-link">Área Cliente</Link>
                         <Link to="/admin" className="nav-link">Área Admin</Link>
                     </div>
 
@@ -72,6 +73,7 @@ const Navbar = ({ cartCount }) => {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                             <Link to="/" onClick={() => setIsOpen(false)}>Início</Link>
                             <Link to="/catalog" onClick={() => setIsOpen(false)}>Catálogo</Link>
+                            <Link to="/cliente" onClick={() => setIsOpen(false)}>Área Cliente</Link>
                             <Link to="/admin" onClick={() => setIsOpen(false)}>Área Admin</Link>
                         </div>
                     </div>

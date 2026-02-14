@@ -1,7 +1,13 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
 import { Trash2, ArrowRight } from 'lucide-react';
 
 const Cart = ({ cartItems, setCartItems }) => {
+    const [session, setSession] = useState(null);
+    const [profile, setProfile] = useState(null);
+    const [authLoading, setAuthLoading] = useState(true);
+    const [checkoutError, setCheckoutError] = useState('');
     const resolvePrice = (item) => {
         if (item.priceType === 'wholesale') return item.wholesalePrice;
         if (item.priceType === 'retail') return item.price;
@@ -29,9 +35,56 @@ const Cart = ({ cartItems, setCartItems }) => {
         setCartItems(newCart);
     };
 
+    useEffect(() => {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            setSession(session);
+            setAuthLoading(false);
+        });
+
+        const {
+            data: { subscription },
+        } = supabase.auth.onAuthStateChange((_event, session) => {
+            setSession(session);
+        });
+
+        return () => subscription.unsubscribe();
+    }, []);
+
+    useEffect(() => {
+        if (!session) {
+            setProfile(null);
+            return;
+        }
+
+        const fetchProfile = async () => {
+            const { data, error } = await supabase
+                .from('customers')
+                .select('id')
+                .eq('user_id', session.user.id)
+                .single();
+
+            if (error && error.code !== 'PGRST116') {
+                console.error('Erro ao buscar perfil:', error);
+                return;
+            }
+            setProfile(data || null);
+        };
+
+        fetchProfile();
+    }, [session]);
+
     const handleCheckout = () => {
+        setCheckoutError('');
+        if (!session) {
+            setCheckoutError('Faça login para finalizar a compra.');
+            return;
+        }
+        if (!profile) {
+            setCheckoutError('Complete seu cadastro antes de finalizar a compra.');
+            return;
+        }
         if (cartItems.length === 0) return;
-        alert('Pedido realizado com sucesso! Em breve você receberá os detalhes da entrega.');
+        alert('Pedido realizado com sucesso! Em breve você recebera os detalhes da entrega.');
         setCartItems([]);
     };
 
@@ -98,6 +151,24 @@ const Cart = ({ cartItems, setCartItems }) => {
                     <div className="glass-card" style={{ padding: '1.5rem', position: 'sticky', top: '6rem' }}>
                         <h3 style={{ fontSize: '1.25rem', marginBottom: '1.5rem' }}>Resumo do Pedido</h3>
 
+                        {!authLoading && !session && (
+                            <div style={{ padding: '0.75rem 1rem', background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: '0.5rem', marginBottom: '1rem', fontSize: '0.85rem' }}>
+                                Para finalizar, faca login na <Link to="/cliente" style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}>Area do Cliente</Link>.
+                            </div>
+                        )}
+
+                        {!authLoading && session && !profile && (
+                            <div style={{ padding: '0.75rem 1rem', background: '#fef9c3', border: '1px solid #fde68a', borderRadius: '0.5rem', marginBottom: '1rem', fontSize: '0.85rem' }}>
+                                Complete seu cadastro na <Link to="/cliente" style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}>Area do Cliente</Link> para finalizar.
+                            </div>
+                        )}
+
+                        {checkoutError && (
+                            <div style={{ padding: '0.75rem 1rem', background: '#fee2e2', color: '#991b1b', borderRadius: '0.5rem', marginBottom: '1rem', fontSize: '0.85rem' }}>
+                                {checkoutError}
+                            </div>
+                        )}
+
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', color: 'var(--color-text-muted)' }}>
                             <span>Subtotal</span>
                             <span>R$ {total.toFixed(2)}</span>
@@ -114,9 +185,9 @@ const Cart = ({ cartItems, setCartItems }) => {
 
                         <button
                             onClick={handleCheckout}
-                            disabled={cartItems.length === 0}
+                            disabled={cartItems.length === 0 || !session || !profile}
                             className="btn btn-primary"
-                            style={{ width: '100%', opacity: cartItems.length === 0 ? 0.5 : 1 }}
+                            style={{ width: '100%', opacity: cartItems.length === 0 || !session || !profile ? 0.5 : 1 }}
                         >
                             Finalizar Compra <ArrowRight size={20} />
                         </button>
