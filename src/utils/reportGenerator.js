@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { getMedicineTypeLabel } from './medicineTypes';
 
 export const generateStockReport = (medicines) => {
     const doc = new jsPDF();
@@ -42,7 +43,7 @@ export const generateStockReport = (medicines) => {
     const tableData = medicines.map(med => [
         med.name,
         med.dosage,
-        med.type,
+        getMedicineTypeLabel(med.type),
         med.stock,
         `R$ ${med.price.toFixed(2)}`,
         `R$ ${(med.price * med.stock).toFixed(2)}`,

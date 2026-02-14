@@ -331,15 +331,25 @@ FOR EACH ROW EXECUTE FUNCTION public.handle_new_customer();
 
 -- Inserir dados de exemplo (medicamentos do mock atual)
 INSERT INTO medicines (name, dosage, price, wholesale_price, type, description, stock, image_url, requires_prescription) VALUES
-('Dipirona Sódica', '500mg', 4.50, 2.90, 'Analgesic', 'Analgésico e antitérmico.', 1500, 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&q=80&w=400', false),
-('Amoxicilina', '875mg', 25.90, 18.50, 'Antibiotic', 'Antibiótico de amplo espectro.', 450, 'https://images.unsplash.com/photo-1471864190281-a93a3070b6de?auto=format&fit=crop&q=80&w=400', true),
-('Loratadina', '10mg', 12.00, 8.00, 'Antiallergic', 'Antialérgico para alívio de rinite.', 800, 'https://images.unsplash.com/photo-1550572017-edd951aa8f72?auto=format&fit=crop&q=80&w=400', false),
-('Omeprazol', '20mg', 18.90, 12.50, 'Gastric', 'Para tratamento de úlceras gástricas.', 600, 'https://images.unsplash.com/photo-1585237618992-1c25110f04ca?auto=format&fit=crop&q=80&w=400', false),
-('Ibuprofeno', '600mg', 15.50, 10.00, 'Anti-inflammatory', 'Anti-inflamatório não esteroide.', 1200, 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?auto=format&fit=crop&q=80&w=400', false),
-('Rivotril (Clonazepam)', '2mg', 35.00, 28.00, 'Controlled', 'Ansiolítico e anticonvulsivante.', 200, 'https://images.unsplash.com/photo-1549480017-d76466a4b7e8?auto=format&fit=crop&q=80&w=400', true),
-('Paracetamol', '750mg', 5.00, 3.50, 'Analgesic', 'Analgésico e antitérmico seguro.', 2000, 'https://images.unsplash.com/photo-1584017911766-d451b3d0e843?auto=format&fit=crop&q=80&w=400', false),
+('Dipirona Sódica', '500mg', 4.50, 2.90, 'Analgésico', 'Analgésico e antitérmico.', 1500, 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&q=80&w=400', false),
+('Amoxicilina', '875mg', 25.90, 18.50, 'Antibiótico', 'Antibiótico de amplo espectro.', 450, 'https://images.unsplash.com/photo-1471864190281-a93a3070b6de?auto=format&fit=crop&q=80&w=400', true),
+('Loratadina', '10mg', 12.00, 8.00, 'Antialérgico', 'Antialérgico para alívio de rinite.', 800, 'https://images.unsplash.com/photo-1550572017-edd951aa8f72?auto=format&fit=crop&q=80&w=400', false),
+('Omeprazol', '20mg', 18.90, 12.50, 'Gástrico', 'Para tratamento de úlceras gástricas.', 600, 'https://images.unsplash.com/photo-1585237618992-1c25110f04ca?auto=format&fit=crop&q=80&w=400', false),
+('Ibuprofeno', '600mg', 15.50, 10.00, 'Anti-inflamatório', 'Anti-inflamatório não esteroide.', 1200, 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?auto=format&fit=crop&q=80&w=400', false),
+('Rivotril (Clonazepam)', '2mg', 35.00, 28.00, 'Controlado', 'Ansiolítico e anticonvulsivante.', 200, 'https://images.unsplash.com/photo-1549480017-d76466a4b7e8?auto=format&fit=crop&q=80&w=400', true),
+('Paracetamol', '750mg', 5.00, 3.50, 'Analgésico', 'Analgésico e antitérmico seguro.', 2000, 'https://images.unsplash.com/photo-1584017911766-d451b3d0e843?auto=format&fit=crop&q=80&w=400', false),
 ('Losartana Potássica', '50mg', 8.90, 5.50, 'Cardiovascular', 'Para tratamento de pressão alta.', 1000, 'https://images.unsplash.com/photo-1628771065518-0d82f1938462?auto=format&fit=crop&q=80&w=400', true),
-('Simeticona', '125mg', 9.90, 6.90, 'Gastric', 'Alívio de gases e desconforto abdominal.', 500, 'https://images.unsplash.com/photo-1551601651-2a8555f1a136?auto=format&fit=crop&q=80&w=400', false),
-('Vitamina C', '1g', 15.00, 11.00, 'Supplement', 'Suplemento vitamínico efervescente.', 300, 'https://images.unsplash.com/photo-1596755389378-c31d21fd1273?auto=format&fit=crop&q=80&w=400', false),
-('Azitromicina', '500mg', 32.00, 25.00, 'Antibiotic', 'Antibiótico para infecções respiratórias.', 150, 'https://images.unsplash.com/photo-1584362917165-526a968579e8?auto=format&fit=crop&q=80&w=400', true),
-('Dorflex', '300mg', 18.50, 14.00, 'Analgesic', 'Relaxante muscular e analgésico.', 1200, 'https://images.unsplash.com/photo-1542037941-ab514125749f?auto=format&fit=crop&q=80&w=400', false);
+('Simeticona', '125mg', 9.90, 6.90, 'Gástrico', 'Alívio de gases e desconforto abdominal.', 500, 'https://images.unsplash.com/photo-1551601651-2a8555f1a136?auto=format&fit=crop&q=80&w=400', false),
+('Vitamina C', '1g', 15.00, 11.00, 'Suplemento', 'Suplemento vitamínico efervescente.', 300, 'https://images.unsplash.com/photo-1596755389378-c31d21fd1273?auto=format&fit=crop&q=80&w=400', false),
+('Azitromicina', '500mg', 32.00, 25.00, 'Antibiótico', 'Antibiótico para infecções respiratórias.', 150, 'https://images.unsplash.com/photo-1584362917165-526a968579e8?auto=format&fit=crop&q=80&w=400', true),
+('Dorflex', '300mg', 18.50, 14.00, 'Analgésico', 'Relaxante muscular e analgésico.', 1200, 'https://images.unsplash.com/photo-1542037941-ab514125749f?auto=format&fit=crop&q=80&w=400', false);
+
+-- Atualizar tipos existentes para português (se necessário)
+UPDATE medicines SET type = 'Analgésico' WHERE type = 'Analgesic';
+UPDATE medicines SET type = 'Antibiótico' WHERE type = 'Antibiotic';
+UPDATE medicines SET type = 'Antialérgico' WHERE type = 'Antiallergic';
+UPDATE medicines SET type = 'Gástrico' WHERE type = 'Gastric';
+UPDATE medicines SET type = 'Anti-inflamatório' WHERE type = 'Anti-inflammatory';
+UPDATE medicines SET type = 'Controlado' WHERE type = 'Controlled';
+UPDATE medicines SET type = 'Cardiovascular' WHERE type = 'Cardiovascular';
+UPDATE medicines SET type = 'Suplemento' WHERE type = 'Supplement';

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { getMedicineTypeLabel } from '../utils/medicineTypes';
 import { Plus, Search, Filter } from 'lucide-react';
 
 const Catalog = ({ addToCart }) => {
@@ -105,7 +106,7 @@ const Catalog = ({ addToCart }) => {
                                     className={`btn ${filterType === type ? 'btn-primary' : 'btn-outline'}`}
                                     style={{ whiteSpace: 'nowrap', padding: '0.5rem 1rem' }}
                                 >
-                                    {type === 'All' ? 'Todos' : type}
+                                    {type === 'All' ? 'Todos' : getMedicineTypeLabel(type)}
                                 </button>
                             ))}
                         </div>

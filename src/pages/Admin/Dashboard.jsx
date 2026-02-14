@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { LayoutDashboard, Package, Users, Settings, LogOut, Loader2, FileText, Printer, TrendingDown, DollarSign, AlertTriangle } from 'lucide-react';
 import { generateStockReport, generateCriticalStockReport } from '../../utils/reportGenerator';
+import { getMedicineTypeLabel } from '../../utils/medicineTypes';
 
 const AdminDashboard = () => {
     console.log('📊 Renderizando AdminDashboard');
@@ -849,7 +850,7 @@ const AdminDashboard = () => {
                                             <td style={{ padding: '1rem', fontWeight: '500' }}>
                                                 {med.name} <span style={{ fontSize: '0.8rem', color: 'gray' }}>({med.dosage})</span>
                                             </td>
-                                            <td style={{ padding: '1rem' }}>{med.type}</td>
+                                            <td style={{ padding: '1rem' }}>{getMedicineTypeLabel(med.type)}</td>
                                             <td style={{ padding: '1rem' }}>{med.stock}</td>
                                             <td style={{ padding: '1rem' }}>
                                                 {med.expiration_date ? (
