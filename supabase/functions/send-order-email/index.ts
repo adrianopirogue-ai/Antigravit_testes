@@ -70,10 +70,6 @@ serve(async (req) => {
         adminEmails = (admins ?? []).map((admin) => admin.email).filter(Boolean);
     }
 
-    if (!adminEmails.length) {
-        return jsonResponse({ error: 'No admin emails configured' }, 400);
-    }
-
     const items = (order.order_items ?? []).map((item) => ({
         name: item.medicines?.name ?? 'Produto',
         dosage: item.medicines?.dosage ?? '',
@@ -91,7 +87,7 @@ serve(async (req) => {
     const address = `${customer.address}, ${customer.address_number} (${customer.address_type}) - ${customer.municipio}/${customer.estado} - CEP ${customer.cep}`;
     const phones = [customer.phone1, customer.phone2].filter(Boolean).join(' / ');
 
-    const html = `
+    const adminHtml = `
         <h2>Novo pedido recebido</h2>
         <p><strong>Pedido:</strong> ${order.id}</p>
         <p><strong>Cliente:</strong> ${customer.name}</p>
@@ -105,28 +101,67 @@ serve(async (req) => {
         <ul>${itemsHtml}</ul>
     `;
 
+    const customerHtml = `
+        <h2>Pedido confirmado</h2>
+        <p>Ola <strong>${customer.name}</strong>, seu pedido foi registrado com sucesso.</p>
+        <p><strong>Numero do pedido:</strong> ${order.id}</p>
+        <p><strong>Total:</strong> R$ ${Number(order.total).toFixed(2)}</p>
+        <p><strong>Endereco de entrega:</strong> ${address}</p>
+        <h3>Itens</h3>
+        <ul>${itemsHtml}</ul>
+        <p>Em breve nosso time entrara em contato caso seja necessario.</p>
+    `;
+
     if (!resendApiKey) {
         return jsonResponse({ error: 'RESEND_API_KEY is not configured' }, 500);
     }
 
-    const response = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-            Authorization: `Bearer ${resendApiKey}`,
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            from: resendFrom,
-            to: adminEmails,
-            subject: `Novo pedido ${order.id.slice(0, 8)}`,
-            html,
-        }),
-    });
+    const sendEmail = async (to: string | string[], subject: string, html: string) => {
+        const response = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${resendApiKey}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                from: resendFrom,
+                to,
+                subject,
+                html,
+            }),
+        });
 
-    if (!response.ok) {
-        const message = await response.text();
-        return jsonResponse({ error: message || 'Failed to send email' }, 500);
+        if (!response.ok) {
+            const message = await response.text();
+            throw new Error(message || 'Failed to send email');
+        }
+    };
+
+    const errors: string[] = [];
+    let adminSent = false;
+    let customerSent = false;
+
+    if (adminEmails.length) {
+        try {
+            await sendEmail(adminEmails, `Novo pedido ${order.id.slice(0, 8)}`, adminHtml);
+            adminSent = true;
+        } catch (error) {
+            errors.push(`admin: ${error.message ?? error}`);
+        }
     }
 
-    return jsonResponse({ ok: true });
+    if (customer.email) {
+        try {
+            await sendEmail(customer.email, `Confirmacao do pedido ${order.id.slice(0, 8)}`, customerHtml);
+            customerSent = true;
+        } catch (error) {
+            errors.push(`cliente: ${error.message ?? error}`);
+        }
+    }
+
+    if (!adminSent && !customerSent) {
+        return jsonResponse({ error: errors.join(' | ') || 'Failed to send email' }, 500);
+    }
+
+    return jsonResponse({ ok: true, adminSent, customerSent, warnings: errors });
 });

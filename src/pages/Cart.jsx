@@ -10,6 +10,7 @@ const Cart = ({ cartItems, setCartItems }) => {
     const [checkoutError, setCheckoutError] = useState('');
     const [checkoutSuccess, setCheckoutSuccess] = useState('');
     const [isCheckingOut, setIsCheckingOut] = useState(false);
+    const baseUrl = import.meta.env.BASE_URL || '/';
     const getPromoPercent = (item) => Number(item.promoPercent ?? item.promo_percent ?? 0);
 
     const applyPromo = (price, item) => {
@@ -132,16 +133,19 @@ const Cart = ({ cartItems, setCartItems }) => {
 
                 if (emailError) {
                     console.warn('Erro ao enviar email do pedido:', emailError);
-                    setCheckoutSuccess('Pedido registrado! Email aos administradores sera enviado em instantes.');
+                    setCheckoutSuccess('Pedido registrado! O email de confirmacao sera enviado em instantes.');
                 } else {
-                    setCheckoutSuccess('Pedido registrado! Os administradores receberam um email com os detalhes.');
+                    setCheckoutSuccess('Pedido registrado! Enviamos a confirmacao para seu email.');
                 }
             } catch (error) {
                 console.warn('Falha ao chamar funcao de email:', error);
-                setCheckoutSuccess('Pedido registrado! Email aos administradores sera enviado em instantes.');
+                setCheckoutSuccess('Pedido registrado! O email de confirmacao sera enviado em instantes.');
             }
 
             setCartItems([]);
+            setTimeout(() => {
+                window.location.href = `${baseUrl}catalog`;
+            }, 1500);
         } catch (error) {
             console.error('Erro ao finalizar compra:', error);
             setCheckoutError(error.message || 'Erro ao finalizar a compra.');
