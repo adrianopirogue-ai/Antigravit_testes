@@ -9,6 +9,11 @@ const AdminDashboard = () => {
     const [session, setSession] = useState(null);
     const [loading, setLoading] = useState(true);
     const [medicines, setMedicines] = useState([]);
+    const [activeTab, setActiveTab] = useState('stock');
+    const [customers, setCustomers] = useState([]);
+    const [customersLoading, setCustomersLoading] = useState(false);
+    const [customersError, setCustomersError] = useState('');
+    const [customerSearch, setCustomerSearch] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loginError, setLoginError] = useState('');
@@ -71,6 +76,12 @@ const AdminDashboard = () => {
         }
     }, [session]);
 
+    useEffect(() => {
+        if (session && activeTab === 'customers') {
+            fetchCustomers();
+        }
+    }, [session, activeTab]);
+
     const fetchMedicines = async () => {
         try {
             const { data, error } = await supabase
@@ -83,6 +94,31 @@ const AdminDashboard = () => {
             setMedicines(data || []);
         } catch (error) {
             console.error('Erro ao buscar medicamentos:', error);
+        }
+    };
+
+    const fetchCustomers = async () => {
+        setCustomersError('');
+        setCustomersLoading(true);
+        try {
+            const { data, error } = await supabase
+                .from('customers')
+                .select('id, name, email, cpf_cnpj, phone1, municipio, estado, created_at')
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+
+            setCustomers(data || []);
+        } catch (error) {
+            console.error('Erro ao buscar clientes:', error);
+            const message = error.message || 'Erro ao buscar clientes.';
+            if (message.toLowerCase().includes('permission')) {
+                setCustomersError('Sem permissao para listar clientes. Verifique se o email esta cadastrado na tabela admins e se as politicas foram aplicadas.');
+            } else {
+                setCustomersError(message);
+            }
+        } finally {
+            setCustomersLoading(false);
         }
     };
 
@@ -329,6 +365,22 @@ const AdminDashboard = () => {
 
     const stats = calculateStats();
 
+    const filteredCustomers = customers.filter((customer) => {
+        const term = customerSearch.trim().toLowerCase();
+        if (!term) return true;
+
+        return [
+            customer.name,
+            customer.email,
+            customer.cpf_cnpj,
+            customer.phone1,
+            customer.municipio,
+            customer.estado
+        ]
+            .filter(Boolean)
+            .some((value) => value.toString().toLowerCase().includes(term));
+    });
+
     // Loading state
     if (loading) {
         return (
@@ -452,10 +504,18 @@ const AdminDashboard = () => {
                 </div>
 
                 <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <button className="btn btn-primary" style={{ justifyContent: 'flex-start', width: '100%' }}>
+                    <button
+                        className={`btn ${activeTab === 'stock' ? 'btn-primary' : 'btn-outline'}`}
+                        style={{ justifyContent: 'flex-start', width: '100%' }}
+                        onClick={() => setActiveTab('stock')}
+                    >
                         <Package size={18} /> Estoque
                     </button>
-                    <button className="btn btn-outline" style={{ justifyContent: 'flex-start', width: '100%', border: 'none' }}>
+                    <button
+                        className={`btn ${activeTab === 'customers' ? 'btn-primary' : 'btn-outline'}`}
+                        style={{ justifyContent: 'flex-start', width: '100%' }}
+                        onClick={() => setActiveTab('customers')}
+                    >
                         <Users size={18} /> Clientes
                     </button>
                     <button className="btn btn-outline" style={{ justifyContent: 'flex-start', width: '100%', border: 'none' }}>
@@ -472,6 +532,8 @@ const AdminDashboard = () => {
 
             {/* Main Content */}
             <main style={{ flex: 1, minWidth: '300px' }} className="slide-in">
+                {activeTab === 'stock' && (
+                    <>
                 {/* Statistics Cards */}
                 <div style={{
                     display: 'grid',
@@ -582,6 +644,92 @@ const AdminDashboard = () => {
                         </table>
                     </div>
                 </div>
+                    </>
+                )}
+                {activeTab === 'customers' && (
+                    <div className="glass-card" style={{ padding: '2rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', gap: '1rem', flexWrap: 'wrap' }}>
+                            <div>
+                                <h2>Clientes Cadastrados</h2>
+                                <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
+                                    {customers.length} clientes registrados.
+                                </p>
+                            </div>
+                            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                                <input
+                                    type="text"
+                                    value={customerSearch}
+                                    onChange={(e) => setCustomerSearch(e.target.value)}
+                                    placeholder="Buscar por nome, email, CPF..."
+                                    style={{
+                                        padding: '0.65rem 0.75rem',
+                                        borderRadius: '0.5rem',
+                                        border: '1px solid var(--color-border)',
+                                        minWidth: '220px'
+                                    }}
+                                />
+                                <button type="button" className="btn btn-outline" onClick={fetchCustomers}>
+                                    Atualizar
+                                </button>
+                            </div>
+                        </div>
+
+                        {customersError && (
+                            <div style={{
+                                padding: '0.75rem 1rem',
+                                background: '#fee2e2',
+                                color: '#991b1b',
+                                borderRadius: '0.5rem',
+                                marginBottom: '1rem',
+                                fontSize: '0.9rem'
+                            }}>
+                                {customersError}
+                            </div>
+                        )}
+
+                        {customersLoading ? (
+                            <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
+                                <Loader2 size={32} color="var(--color-primary)" style={{ animation: 'spin 1s linear infinite' }} />
+                            </div>
+                        ) : (
+                            <div style={{ overflowX: 'auto' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                                    <thead>
+                                        <tr style={{ borderBottom: '2px solid var(--color-border)' }}>
+                                            <th style={{ padding: '0.85rem' }}>Nome</th>
+                                            <th style={{ padding: '0.85rem' }}>Email</th>
+                                            <th style={{ padding: '0.85rem' }}>CPF/CNPJ</th>
+                                            <th style={{ padding: '0.85rem' }}>Telefone</th>
+                                            <th style={{ padding: '0.85rem' }}>Cidade/UF</th>
+                                            <th style={{ padding: '0.85rem' }}>Cadastro</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {filteredCustomers.map((customer) => (
+                                            <tr key={customer.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                                                <td style={{ padding: '0.85rem', fontWeight: '600' }}>{customer.name}</td>
+                                                <td style={{ padding: '0.85rem' }}>{customer.email}</td>
+                                                <td style={{ padding: '0.85rem' }}>{customer.cpf_cnpj}</td>
+                                                <td style={{ padding: '0.85rem' }}>{customer.phone1}</td>
+                                                <td style={{ padding: '0.85rem' }}>{customer.municipio}/{customer.estado}</td>
+                                                <td style={{ padding: '0.85rem' }}>
+                                                    {customer.created_at ? new Date(customer.created_at).toLocaleDateString('pt-BR') : '-'}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        {!filteredCustomers.length && (
+                                            <tr>
+                                                <td colSpan="6" style={{ padding: '1rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                                                    Nenhum cliente encontrado.
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+                )}
             </main>
             {isFormOpen && (
                 <div style={{

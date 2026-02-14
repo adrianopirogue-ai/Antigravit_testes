@@ -118,6 +118,7 @@ DROP POLICY IF EXISTS "Acesso a itens via pedido" ON order_items;
 DROP POLICY IF EXISTS "Clientes podem ver seu perfil" ON customers;
 DROP POLICY IF EXISTS "Clientes podem criar perfil" ON customers;
 DROP POLICY IF EXISTS "Clientes podem atualizar perfil" ON customers;
+DROP POLICY IF EXISTS "Admins podem ver clientes" ON customers;
 DROP POLICY IF EXISTS "Admins podem ler" ON admins;
 DROP POLICY IF EXISTS "Admins podem escrever" ON admins;
 
@@ -164,6 +165,25 @@ CREATE POLICY "Clientes podem criar perfil"
 CREATE POLICY "Clientes podem atualizar perfil"
   ON customers FOR UPDATE
   USING (auth.uid() = user_id);
+
+-- Admins: podem ver todos os clientes
+CREATE POLICY "Admins podem ver clientes"
+  ON customers FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM admins
+      WHERE admins.email = (auth.jwt() ->> 'email')
+      AND admins.is_active = true
+    )
+  );
+
+-- Admins: podem ler apenas seu proprio cadastro
+CREATE POLICY "Admins podem ler"
+  ON admins FOR SELECT
+  USING (
+    admins.email = (auth.jwt() ->> 'email')
+    AND admins.is_active = true
+  );
 
 -- Funcao para login por CPF/CNPJ (retorna email)
 CREATE OR REPLACE FUNCTION public.get_email_by_cpf(p_cpf text)
