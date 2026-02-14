@@ -178,6 +178,64 @@ $$;
 REVOKE ALL ON FUNCTION public.get_email_by_cpf(text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.get_email_by_cpf(text) TO anon, authenticated;
 
+-- Funcao para vincular cadastro existente ao usuario logado
+DROP FUNCTION IF EXISTS public.claim_customer_profile(text, text, jsonb);
+
+CREATE OR REPLACE FUNCTION public.claim_customer_profile(p_email text, p_cpf text, p_payload jsonb)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_uid uuid := auth.uid();
+  v_customer_id uuid;
+  v_existing_user uuid;
+  v_email text := trim(coalesce(p_email, ''));
+  v_cpf text := trim(coalesce(p_cpf, ''));
+BEGIN
+  IF v_uid IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  SELECT id, user_id INTO v_customer_id, v_existing_user
+  FROM public.customers
+  WHERE email = v_email AND cpf_cnpj = v_cpf
+  LIMIT 1;
+
+  IF v_customer_id IS NULL THEN
+    RETURN false;
+  END IF;
+
+  IF v_existing_user IS NOT NULL AND v_existing_user <> v_uid THEN
+    RAISE EXCEPTION 'CPF/CNPJ ja cadastrado em outra conta';
+  END IF;
+
+  UPDATE public.customers
+  SET
+    user_id = v_uid,
+    name = COALESCE(NULLIF(trim(p_payload->>'name'), ''), name),
+    email = COALESCE(NULLIF(trim(p_payload->>'email'), ''), v_email, email),
+    cpf_cnpj = COALESCE(NULLIF(trim(p_payload->>'cpf_cnpj'), ''), v_cpf, cpf_cnpj),
+    phone1 = COALESCE(NULLIF(trim(p_payload->>'phone1'), ''), phone1),
+    phone2 = NULLIF(trim(coalesce(p_payload->>'phone2', '')), ''),
+    cep = COALESCE(NULLIF(trim(p_payload->>'cep'), ''), cep),
+    address = COALESCE(NULLIF(trim(p_payload->>'address'), ''), address),
+    address_number = COALESCE(NULLIF(trim(p_payload->>'address_number'), ''), address_number),
+    address_type = COALESCE(NULLIF(trim(p_payload->>'address_type'), ''), address_type),
+    municipio = COALESCE(NULLIF(trim(p_payload->>'municipio'), ''), municipio),
+    estado = COALESCE(NULLIF(trim(p_payload->>'estado'), ''), estado),
+    reference = NULLIF(trim(coalesce(p_payload->>'reference', '')), ''),
+    updated_at = timezone('utc'::text, now())
+  WHERE id = v_customer_id;
+
+  RETURN true;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.claim_customer_profile(text, text, jsonb) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.claim_customer_profile(text, text, jsonb) TO authenticated;
+
 -- Criar cliente automaticamente apos cadastro (usa metadata do usuario)
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 DROP FUNCTION IF EXISTS public.handle_new_customer();

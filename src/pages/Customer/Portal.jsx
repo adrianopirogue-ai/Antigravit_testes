@@ -287,30 +287,43 @@ const CustomerPortal = () => {
                 reference: profileData.reference.trim() || null
             };
 
-            const { data, error } = await supabase
+            const { error: upsertError } = await supabase
                 .from('customers')
-                .select('id')
-                .eq('user_id', session.user.id)
-                .single();
+                .upsert([payload], { onConflict: 'user_id' });
 
-            if (error && error.code !== 'PGRST116') throw error;
+            if (upsertError) {
+                const message = (upsertError.message || '').toLowerCase();
+                const isDuplicate =
+                    upsertError.code === '23505' ||
+                    message.includes('customers_cpf_cnpj_key') ||
+                    message.includes('customers_email_key') ||
+                    message.includes('duplicate key');
 
-            if (data?.id) {
-                const { error: updateError } = await supabase
-                    .from('customers')
-                    .update(payload)
-                    .eq('user_id', session.user.id);
+                if (isDuplicate) {
+                    const { data: claimed, error: claimError } = await supabase
+                        .rpc('claim_customer_profile', {
+                            p_email: payload.email,
+                            p_cpf: payload.cpf_cnpj,
+                            p_payload: payload
+                        });
 
-                if (updateError) throw updateError;
-                setSuccess('Dados atualizados com sucesso.');
-            } else {
-                const { error: insertError } = await supabase
-                    .from('customers')
-                    .insert([payload]);
-                if (insertError) throw insertError;
-                setSuccess('Cadastro completo!');
-                setProfileLoaded(true);
+                    if (claimError) throw claimError;
+
+                    if (claimed) {
+                        setSuccess('Cadastro vinculado com sucesso.');
+                        setProfileLoaded(true);
+                        return;
+                    }
+
+                    setError('CPF/CNPJ ja cadastrado em outra conta. Use o email original do cadastro.');
+                    return;
+                }
+
+                throw upsertError;
             }
+
+            setSuccess('Dados atualizados com sucesso.');
+            setProfileLoaded(true);
         } catch (error) {
             console.error('Erro ao salvar perfil:', error);
             setError(error.message || 'Erro ao salvar perfil.');
