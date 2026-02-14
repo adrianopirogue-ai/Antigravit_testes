@@ -181,30 +181,41 @@ const Catalog = ({ addToCart }) => {
                                             </div>
                                         </div>
 
-                                        <div style={{ display: 'grid', gap: '0.5rem' }}>
-                                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                        <div style={{ display: 'grid', gap: '0.75rem' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}>
+                                                <span style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', fontWeight: 600 }}>
+                                                    Quantidade
+                                                </span>
                                                 <input
                                                     type="number"
                                                     min="1"
                                                     defaultValue="1"
                                                     id={`qty-${med.id}`}
-                                                    style={{ width: '70px', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--color-border)' }}
+                                                    aria-label={`Quantidade para ${med.name}`}
+                                                    style={{ width: '90px', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--color-border)' }}
                                                 />
+                                            </div>
+
+                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '0.5rem' }}>
                                                 <button
                                                     onClick={() => handleAddToCart(med, 'retail')}
                                                     className="btn btn-primary"
-                                                    style={{ flex: 1 }}
+                                                    style={{ width: '100%' }}
                                                 >
-                                                    <Plus size={20} /> Varejo
+                                                    <Plus size={18} /> Varejo
+                                                </button>
+                                                <button
+                                                    onClick={() => handleAddToCart(med, 'wholesale')}
+                                                    className="btn btn-outline"
+                                                    style={{ width: '100%', borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }}
+                                                >
+                                                    <Plus size={18} /> Atacado 10+
                                                 </button>
                                             </div>
-                                            <button
-                                                onClick={() => handleAddToCart(med, 'wholesale')}
-                                                className="btn btn-outline"
-                                                style={{ width: '100%' }}
-                                            >
-                                                <Plus size={18} /> Atacado (10+)
-                                            </button>
+
+                                            <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                                                Varejo: preco unitario. Atacado: minimo de 10 unidades.
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
