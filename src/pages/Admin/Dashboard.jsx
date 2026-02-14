@@ -13,6 +13,35 @@ const AdminDashboard = () => {
     const [password, setPassword] = useState('');
     const [loginError, setLoginError] = useState('');
     const [isLoggingIn, setIsLoggingIn] = useState(false);
+    const createEmptyForm = () => ({
+        name: '',
+        dosage: '',
+        type: '',
+        stock: '',
+        price: '',
+        wholesale_price: '',
+        description: '',
+        image_url: '',
+        requires_prescription: false,
+    });
+    const [isFormOpen, setIsFormOpen] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [formError, setFormError] = useState('');
+    const [editingMedicine, setEditingMedicine] = useState(null);
+    const [formData, setFormData] = useState(createEmptyForm());
+    const inputStyle = {
+        width: '100%',
+        padding: '0.75rem',
+        borderRadius: '0.5rem',
+        border: '1px solid var(--color-border)',
+        fontSize: '0.95rem'
+    };
+    const labelStyle = {
+        display: 'block',
+        marginBottom: '0.5rem',
+        fontSize: '0.875rem',
+        fontWeight: '600'
+    };
 
     useEffect(() => {
         // Verificar sessão atual
@@ -49,6 +78,113 @@ const AdminDashboard = () => {
             setMedicines(data || []);
         } catch (error) {
             console.error('Erro ao buscar medicamentos:', error);
+        }
+    };
+
+    const openAddForm = () => {
+        setEditingMedicine(null);
+        setFormError('');
+        setFormData(createEmptyForm());
+        setIsFormOpen(true);
+    };
+
+    const openEditForm = (medicine) => {
+        setEditingMedicine(medicine);
+        setFormError('');
+        setFormData({
+            name: medicine.name || '',
+            dosage: medicine.dosage || '',
+            type: medicine.type || '',
+            stock: medicine.stock ?? '',
+            price: medicine.price ?? '',
+            wholesale_price: medicine.wholesale_price ?? '',
+            description: medicine.description || '',
+            image_url: medicine.image_url || '',
+            requires_prescription: !!medicine.requires_prescription,
+        });
+        setIsFormOpen(true);
+    };
+
+    const closeForm = () => {
+        setIsFormOpen(false);
+        setEditingMedicine(null);
+        setFormError('');
+    };
+
+    const handleFormChange = (field, value) => {
+        setFormData((prev) => ({ ...prev, [field]: value }));
+    };
+
+    const toNumber = (value) => Number(String(value).replace(',', '.'));
+
+    const handleSaveMedicine = async (e) => {
+        e.preventDefault();
+        setFormError('');
+
+        if (!formData.name.trim() || !formData.dosage.trim() || !formData.type.trim()) {
+            setFormError('Preencha nome, dosagem e tipo.');
+            return;
+        }
+
+        if (formData.price === '' || formData.wholesale_price === '' || formData.stock === '') {
+            setFormError('Preco, preco atacado e estoque sao obrigatorios.');
+            return;
+        }
+
+        const priceValue = toNumber(formData.price);
+        const wholesaleValue = toNumber(formData.wholesale_price);
+        const stockValue = toNumber(formData.stock);
+
+        if (!Number.isFinite(priceValue) || priceValue < 0) {
+            setFormError('Preco invalido.');
+            return;
+        }
+
+        if (!Number.isFinite(wholesaleValue) || wholesaleValue < 0) {
+            setFormError('Preco atacado invalido.');
+            return;
+        }
+
+        if (!Number.isFinite(stockValue) || stockValue < 0) {
+            setFormError('Estoque invalido.');
+            return;
+        }
+
+        const payload = {
+            name: formData.name.trim(),
+            dosage: formData.dosage.trim(),
+            type: formData.type.trim(),
+            stock: Math.trunc(stockValue),
+            price: priceValue,
+            wholesale_price: wholesaleValue,
+            description: formData.description.trim() ? formData.description.trim() : null,
+            image_url: formData.image_url.trim() ? formData.image_url.trim() : null,
+            requires_prescription: !!formData.requires_prescription,
+        };
+
+        setIsSaving(true);
+        try {
+            let error;
+            if (editingMedicine) {
+                ({ error } = await supabase
+                    .from('medicines')
+                    .update(payload)
+                    .eq('id', editingMedicine.id));
+            } else {
+                ({ error } = await supabase
+                    .from('medicines')
+                    .insert([payload]));
+            }
+
+            if (error) throw error;
+
+            await fetchMedicines();
+            closeForm();
+        } catch (error) {
+            console.error('Erro ao salvar medicamento:', error);
+            setFormError(error.message || 'Erro ao salvar medicamento.');
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -310,9 +446,14 @@ const AdminDashboard = () => {
 
                 {/* Stock Table */}
                 <div className="glass-card" style={{ padding: '2rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', gap: '1rem', flexWrap: 'wrap' }}>
                         <h2>Gestão de Estoque</h2>
-                        <span className="badge badge-info">{medicines.length} produtos</span>
+                        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                            <button type="button" onClick={openAddForm} className="btn btn-primary" style={{ fontSize: '0.9rem' }}>
+                                Adicionar Produto
+                            </button>
+                            <span className="badge badge-info">{medicines.length} produtos</span>
+                        </div>
                     </div>
 
                     <div style={{ overflowX: 'auto' }}>
@@ -340,7 +481,14 @@ const AdminDashboard = () => {
                                             </span>
                                         </td>
                                         <td style={{ padding: '1rem' }}>
-                                            <button className="btn btn-outline" style={{ padding: '0.25rem 0.5rem', fontSize: '0.875rem' }}>Editar</button>
+                                            <button
+                                                type="button"
+                                                onClick={() => openEditForm(med)}
+                                                className="btn btn-outline"
+                                                style={{ padding: '0.25rem 0.5rem', fontSize: '0.875rem' }}
+                                            >
+                                                Editar
+                                            </button>
                                         </td>
                                     </tr>
                                 ))}
@@ -349,6 +497,150 @@ const AdminDashboard = () => {
                     </div>
                 </div>
             </main>
+            {isFormOpen && (
+                <div style={{
+                    position: 'fixed',
+                    inset: 0,
+                    background: 'rgba(15, 23, 42, 0.45)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '1.5rem',
+                    zIndex: 50
+                }}>
+                    <div className="glass-card" style={{ width: '100%', maxWidth: '760px', padding: '2rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
+                            <h3 style={{ fontSize: '1.25rem', fontWeight: '700' }}>
+                                {editingMedicine ? 'Editar Produto' : 'Adicionar Produto'}
+                            </h3>
+                            <button type="button" onClick={closeForm} className="btn btn-outline" style={{ padding: '0.5rem 0.75rem' }}>
+                                Fechar
+                            </button>
+                        </div>
+
+                        {formError && (
+                            <div style={{
+                                padding: '0.75rem 1rem',
+                                background: '#fee2e2',
+                                color: '#991b1b',
+                                borderRadius: '0.5rem',
+                                marginBottom: '1rem',
+                                fontSize: '0.9rem'
+                            }}>
+                                {formError}
+                            </div>
+                        )}
+
+                        <form onSubmit={handleSaveMedicine} style={{ display: 'grid', gap: '1rem' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                                <div>
+                                    <label style={labelStyle}>Nome</label>
+                                    <input
+                                        type="text"
+                                        value={formData.name}
+                                        onChange={(e) => handleFormChange('name', e.target.value)}
+                                        style={inputStyle}
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label style={labelStyle}>Dosagem</label>
+                                    <input
+                                        type="text"
+                                        value={formData.dosage}
+                                        onChange={(e) => handleFormChange('dosage', e.target.value)}
+                                        style={inputStyle}
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label style={labelStyle}>Tipo</label>
+                                    <input
+                                        type="text"
+                                        value={formData.type}
+                                        onChange={(e) => handleFormChange('type', e.target.value)}
+                                        style={inputStyle}
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label style={labelStyle}>Estoque</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="1"
+                                        value={formData.stock}
+                                        onChange={(e) => handleFormChange('stock', e.target.value)}
+                                        style={inputStyle}
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label style={labelStyle}>Preco</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={formData.price}
+                                        onChange={(e) => handleFormChange('price', e.target.value)}
+                                        style={inputStyle}
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label style={labelStyle}>Preco Atacado</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={formData.wholesale_price}
+                                        onChange={(e) => handleFormChange('wholesale_price', e.target.value)}
+                                        style={inputStyle}
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label style={labelStyle}>URL da Imagem</label>
+                                    <input
+                                        type="url"
+                                        value={formData.image_url}
+                                        onChange={(e) => handleFormChange('image_url', e.target.value)}
+                                        style={inputStyle}
+                                        placeholder="https://"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label style={labelStyle}>Descricao</label>
+                                <textarea
+                                    value={formData.description}
+                                    onChange={(e) => handleFormChange('description', e.target.value)}
+                                    style={{ ...inputStyle, minHeight: '90px', resize: 'vertical' }}
+                                />
+                            </div>
+
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem' }}>
+                                <input
+                                    type="checkbox"
+                                    checked={formData.requires_prescription}
+                                    onChange={(e) => handleFormChange('requires_prescription', e.target.checked)}
+                                />
+                                Requer receita
+                            </label>
+
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', flexWrap: 'wrap' }}>
+                                <button type="button" className="btn btn-outline" onClick={closeForm}>
+                                    Cancelar
+                                </button>
+                                <button type="submit" className="btn btn-primary" disabled={isSaving}>
+                                    {isSaving ? 'Salvando...' : editingMedicine ? 'Salvar' : 'Adicionar'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
