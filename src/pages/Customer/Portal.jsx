@@ -138,6 +138,10 @@ const CustomerPortal = () => {
             });
 
             if (error) throw error;
+            setSuccess('Login realizado com sucesso. Redirecionando para o catalogo...');
+            setTimeout(() => {
+                window.location.href = `${baseUrl}catalog`;
+            }, 700);
         } catch (error) {
             console.error('Erro no login:', error);
             setError(error.message || 'Erro ao entrar.');

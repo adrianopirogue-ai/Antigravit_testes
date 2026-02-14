@@ -5,10 +5,49 @@ import { supabase } from '../lib/supabase';
 
 const Home = () => {
     const [featuredMedicines, setFeaturedMedicines] = useState([]);
+    const [session, setSession] = useState(null);
+    const [customerName, setCustomerName] = useState('');
 
     useEffect(() => {
         fetchFeaturedMedicines();
     }, []);
+
+    useEffect(() => {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            setSession(session);
+        });
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            setSession(session);
+        });
+
+        return () => subscription.unsubscribe();
+    }, []);
+
+    useEffect(() => {
+        if (!session?.user) {
+            setCustomerName('');
+            return;
+        }
+
+        const fallbackName = session.user.user_metadata?.name || session.user.email || '';
+
+        supabase
+            .from('customers')
+            .select('name')
+            .eq('user_id', session.user.id)
+            .single()
+            .then(({ data, error }) => {
+                if (!error && data?.name) {
+                    setCustomerName(data.name);
+                } else {
+                    setCustomerName(fallbackName);
+                }
+            })
+            .catch(() => {
+                setCustomerName(fallbackName);
+            });
+    }, [session]);
 
     const fetchFeaturedMedicines = async () => {
         try {
@@ -31,6 +70,20 @@ const Home = () => {
 
     return (
         <div className="container">
+            {session?.user && customerName && (
+                <div className="glass-card fade-in" style={{
+                    marginTop: '1.5rem',
+                    marginBottom: '2rem',
+                    padding: '0.85rem 1.25rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem'
+                }}>
+                    <span style={{ color: 'var(--color-text-muted)', fontSize: '0.95rem' }}>Cliente logado:</span>
+                    <strong style={{ color: 'var(--color-primary)', fontSize: '1rem' }}>{customerName}</strong>
+                </div>
+            )}
             {/* Hero Section - Melhorado */}
             <section style={{
                 textAlign: 'center',
