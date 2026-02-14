@@ -10,10 +10,20 @@ const Cart = ({ cartItems, setCartItems }) => {
     const [checkoutError, setCheckoutError] = useState('');
     const [checkoutSuccess, setCheckoutSuccess] = useState('');
     const [isCheckingOut, setIsCheckingOut] = useState(false);
+    const getPromoPercent = (item) => Number(item.promoPercent ?? item.promo_percent ?? 0);
+
+    const applyPromo = (price, item) => {
+        const promo = getPromoPercent(item);
+        if (!promo || promo <= 0) return price;
+        return price * (1 - promo / 100);
+    };
+
     const resolvePrice = (item) => {
-        if (item.priceType === 'wholesale') return item.wholesalePrice;
-        if (item.priceType === 'retail') return item.price;
-        return item.quantity >= 10 ? item.wholesalePrice : item.price;
+        let basePrice;
+        if (item.priceType === 'wholesale') basePrice = item.wholesalePrice;
+        else if (item.priceType === 'retail') basePrice = item.price;
+        else basePrice = item.quantity >= 10 ? item.wholesalePrice : item.price;
+        return applyPromo(basePrice, item);
     };
 
     const resolvePriceLabel = (item) => {
@@ -156,6 +166,7 @@ const Cart = ({ cartItems, setCartItems }) => {
                             {cartItems.map((item, index) => {
                                 const currentPrice = resolvePrice(item);
                                 const priceLabel = resolvePriceLabel(item);
+                                const promoPercent = getPromoPercent(item);
 
                                 return (
                                     <div key={index} style={{
@@ -170,6 +181,11 @@ const Cart = ({ cartItems, setCartItems }) => {
                                             <div>
                                                 <h3 style={{ fontSize: '1.1rem' }}>{item.name}</h3>
                                                 <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>{item.dosage}</p>
+                                                {promoPercent > 0 && (
+                                                    <span style={{ fontSize: '0.75rem', color: '#f59e0b', fontWeight: 'bold' }}>
+                                                        Promoção -{promoPercent}%
+                                                    </span>
+                                                )}
                                                 {priceLabel === 'Atacado' && (
                                                     <span style={{ fontSize: '0.75rem', color: 'var(--color-primary)', fontWeight: 'bold' }}>
                                                         Preço de Atacado aplicado!

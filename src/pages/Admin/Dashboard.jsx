@@ -18,6 +18,8 @@ const AdminDashboard = () => {
     const [password, setPassword] = useState('');
     const [loginError, setLoginError] = useState('');
     const [isLoggingIn, setIsLoggingIn] = useState(false);
+    const [lowStockThreshold, setLowStockThreshold] = useState(100);
+    const [expiryWindowDays, setExpiryWindowDays] = useState(30);
     const createEmptyForm = () => ({
         name: '',
         dosage: '',
@@ -27,6 +29,7 @@ const AdminDashboard = () => {
         wholesale_price: '',
         description: '',
         image_url: '',
+        expiration_date: '',
         requires_prescription: false,
     });
     const [isFormOpen, setIsFormOpen] = useState(false);
@@ -161,6 +164,7 @@ const AdminDashboard = () => {
             wholesale_price: medicine.wholesale_price ?? '',
             description: medicine.description || '',
             image_url: medicine.image_url || '',
+            expiration_date: medicine.expiration_date || '',
             requires_prescription: !!medicine.requires_prescription,
         });
         resetImageState(medicine.image_url || '');
@@ -278,6 +282,7 @@ const AdminDashboard = () => {
                 wholesale_price: wholesaleValue,
                 description: formData.description.trim() ? formData.description.trim() : null,
                 image_url: imageUrl,
+                expiration_date: formData.expiration_date ? formData.expiration_date : null,
                 requires_prescription: !!formData.requires_prescription,
             };
 
@@ -354,16 +359,111 @@ const AdminDashboard = () => {
         window.print();
     };
 
+    const formatDate = (value) => {
+        if (!value) return '-';
+        const date = new Date(`${value}T00:00:00`);
+        if (Number.isNaN(date.getTime())) return value;
+        return date.toLocaleDateString('pt-BR');
+    };
+
+    const getDaysUntilExpiration = (value) => {
+        if (!value) return null;
+        const date = new Date(`${value}T00:00:00`);
+        if (Number.isNaN(date.getTime())) return null;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const diffMs = date.getTime() - today.getTime();
+        return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    };
+
+    const handleAdjustStock = async (medicine, delta) => {
+        const nextStock = Math.max(0, (medicine.stock ?? 0) + delta);
+        try {
+            const { error } = await supabase
+                .from('medicines')
+                .update({ stock: nextStock })
+                .eq('id', medicine.id);
+
+            if (error) throw error;
+            await fetchMedicines();
+        } catch (error) {
+            console.error('Erro ao ajustar estoque:', error);
+            alert(error.message || 'Erro ao ajustar estoque.');
+        }
+    };
+
+    const handleDeleteMedicine = async (medicine) => {
+        const confirmed = window.confirm(`Remover o produto "${medicine.name}"? Essa ação não pode ser desfeita.`);
+        if (!confirmed) return;
+
+        try {
+            const { error } = await supabase
+                .from('medicines')
+                .delete()
+                .eq('id', medicine.id);
+
+            if (error) throw error;
+            await fetchMedicines();
+        } catch (error) {
+            console.error('Erro ao remover produto:', error);
+            alert(error.message || 'Erro ao remover produto.');
+        }
+    };
+
+    const handleApplyPromo = async (medicine, percent = 10) => {
+        try {
+            const { error } = await supabase
+                .from('medicines')
+                .update({ promo_percent: percent })
+                .eq('id', medicine.id);
+
+            if (error) throw error;
+            await fetchMedicines();
+        } catch (error) {
+            console.error('Erro ao aplicar promoÃ§Ã£o:', error);
+            alert(error.message || 'Erro ao aplicar promoÃ§Ã£o.');
+        }
+    };
+
+    const handleRemovePromo = async (medicine) => {
+        try {
+            const { error } = await supabase
+                .from('medicines')
+                .update({ promo_percent: 0 })
+                .eq('id', medicine.id);
+
+            if (error) throw error;
+            await fetchMedicines();
+        } catch (error) {
+            console.error('Erro ao remover promoÃ§Ã£o:', error);
+            alert(error.message || 'Erro ao remover promoÃ§Ã£o.');
+        }
+    };
+
     const calculateStats = () => {
         const totalProducts = medicines.length;
         const totalStock = medicines.reduce((sum, med) => sum + med.stock, 0);
         const totalValue = medicines.reduce((sum, med) => sum + (med.price * med.stock), 0);
-        const criticalStock = medicines.filter(med => med.stock < 100).length;
+        const criticalStock = medicines.filter(med => med.stock < lowStockThreshold).length;
+        const expiringSoon = medicines.filter((med) => {
+            const days = getDaysUntilExpiration(med.expiration_date);
+            return days !== null && days >= 0 && days <= expiryWindowDays;
+        }).length;
 
-        return { totalProducts, totalStock, totalValue, criticalStock };
+        return { totalProducts, totalStock, totalValue, criticalStock, expiringSoon };
     };
 
     const stats = calculateStats();
+
+    const expiringSoon = medicines
+        .map((med) => {
+            const days = getDaysUntilExpiration(med.expiration_date);
+            return { ...med, daysUntil: days };
+        })
+        .filter((med) => med.daysUntil !== null && med.daysUntil >= 0 && med.daysUntil <= expiryWindowDays)
+        .sort((a, b) => (a.daysUntil ?? 0) - (b.daysUntil ?? 0));
+
+    const lowStockItems = medicines.filter((med) => med.stock < lowStockThreshold);
 
     const filteredCustomers = customers.filter((customer) => {
         const term = customerSearch.trim().toLowerCase();
@@ -518,7 +618,11 @@ const AdminDashboard = () => {
                     >
                         <Users size={18} /> Clientes
                     </button>
-                    <button className="btn btn-outline" style={{ justifyContent: 'flex-start', width: '100%', border: 'none' }}>
+                    <button
+                        className={`btn ${activeTab === 'settings' ? 'btn-primary' : 'btn-outline'}`}
+                        style={{ justifyContent: 'flex-start', width: '100%' }}
+                        onClick={() => setActiveTab('settings')}
+                    >
                         <Settings size={18} /> Configurações
                     </button>
                 </nav>
@@ -572,6 +676,13 @@ const AdminDashboard = () => {
                         </div>
                         <div style={{ fontSize: '2rem', fontWeight: '700', color: '#ef4444' }}>{stats.criticalStock}</div>
                     </div>
+                    <div className="glass-card" style={{ padding: '1.5rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                            <span style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>Vencendo em {expiryWindowDays} dias</span>
+                            <AlertTriangle size={20} color="#f59e0b" />
+                        </div>
+                        <div style={{ fontSize: '2rem', fontWeight: '700', color: '#f59e0b' }}>{stats.expiringSoon}</div>
+                    </div>
                 </div>
 
                 {/* Report Section */}
@@ -590,6 +701,117 @@ const AdminDashboard = () => {
                             </button>
                         </div>
                     </div>
+                </div>
+
+                {/* Expiring Soon */}
+                <div className="glass-card" style={{ padding: '2rem', marginBottom: '2rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', gap: '1rem', flexWrap: 'wrap' }}>
+                        <div>
+                            <h3 style={{ fontSize: '1.1rem', fontWeight: '700' }}>Próximos do vencimento ({expiryWindowDays} dias)</h3>
+                            <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>
+                                Produtos que vencem em até {expiryWindowDays} dias.
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            className="btn btn-outline"
+                            onClick={fetchMedicines}
+                        >
+                            Atualizar lista
+                        </button>
+                    </div>
+
+                    {expiringSoon.length === 0 ? (
+                        <p style={{ color: 'var(--color-text-muted)' }}>Nenhum produto vencendo em breve.</p>
+                    ) : (
+                        <div style={{ display: 'grid', gap: '0.75rem' }}>
+                            {expiringSoon.map((med) => (
+                                <div key={med.id} style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    padding: '0.75rem 1rem',
+                                    border: '1px solid var(--color-border)',
+                                    borderRadius: '0.75rem',
+                                    gap: '1rem',
+                                    flexWrap: 'wrap'
+                                }}>
+                                    <div>
+                                        <strong>{med.name}</strong>
+                                        <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
+                                            Vence em {med.daysUntil} dias - {formatDate(med.expiration_date)}
+                                        </div>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                                        {(med.promo_percent ?? 0) > 0 ? (
+                                            <>
+                                                <span className="badge badge-success">Promoção {med.promo_percent}%</span>
+                                                <button type="button" className="btn btn-outline" onClick={() => handleRemovePromo(med)}>
+                                                    Remover promo
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <button type="button" className="btn btn-primary" onClick={() => handleApplyPromo(med, 10)}>
+                                                Aplicar -10%
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {/* Low Stock */}
+                <div className="glass-card" style={{ padding: '2rem', marginBottom: '2rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', gap: '1rem', flexWrap: 'wrap' }}>
+                        <div>
+                            <h3 style={{ fontSize: '1.1rem', fontWeight: '700' }}>Estoque baixo (abaixo de {lowStockThreshold})</h3>
+                            <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>
+                                Produtos que precisam de reposição.
+                            </p>
+                        </div>
+                        <button type="button" className="btn btn-outline" onClick={fetchMedicines}>
+                            Atualizar lista
+                        </button>
+                    </div>
+
+                    {lowStockItems.length === 0 ? (
+                        <p style={{ color: 'var(--color-text-muted)' }}>Nenhum produto com estoque baixo.</p>
+                    ) : (
+                        <div style={{ display: 'grid', gap: '0.75rem' }}>
+                            {lowStockItems.map((med) => (
+                                <div key={med.id} style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    padding: '0.75rem 1rem',
+                                    border: '1px solid var(--color-border)',
+                                    borderRadius: '0.75rem',
+                                    gap: '1rem',
+                                    flexWrap: 'wrap'
+                                }}>
+                                    <div>
+                                        <strong>{med.name}</strong>
+                                        <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
+                                            Estoque atual: {med.stock}
+                                        </div>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                                        <button type="button" className="btn btn-outline" onClick={() => handleAdjustStock(med, 10)}>
+                                            +10
+                                        </button>
+                                        <button type="button" className="btn btn-outline" onClick={() => handleAdjustStock(med, 50)}>
+                                            +50
+                                        </button>
+                                        <button type="button" className="btn btn-primary" onClick={() => openEditForm(med)}>
+                                            Editar
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
                 {/* Stock Table */}
@@ -611,35 +833,108 @@ const AdminDashboard = () => {
                                     <th style={{ padding: '1rem' }}>Produto</th>
                                     <th style={{ padding: '1rem' }}>Tipo</th>
                                     <th style={{ padding: '1rem' }}>Qtd.</th>
+                                    <th style={{ padding: '1rem' }}>Validade</th>
                                     <th style={{ padding: '1rem' }}>Status</th>
+                                    <th style={{ padding: '1rem' }}>Promoção</th>
                                     <th style={{ padding: '1rem' }}>Ações</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {medicines.map(med => (
-                                    <tr key={med.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                                        <td style={{ padding: '1rem', fontWeight: '500' }}>
-                                            {med.name} <span style={{ fontSize: '0.8rem', color: 'gray' }}>({med.dosage})</span>
-                                        </td>
-                                        <td style={{ padding: '1rem' }}>{med.type}</td>
-                                        <td style={{ padding: '1rem' }}>{med.stock}</td>
-                                        <td style={{ padding: '1rem' }}>
-                                            <span className={`badge ${med.stock >= 500 ? 'badge-success' : med.stock >= 100 ? 'badge-info' : 'badge-warning'}`}>
-                                                {med.stock >= 500 ? 'Alto' : med.stock >= 100 ? 'Normal' : 'Baixo'}
-                                            </span>
-                                        </td>
-                                        <td style={{ padding: '1rem' }}>
-                                            <button
-                                                type="button"
-                                                onClick={() => openEditForm(med)}
-                                                className="btn btn-outline"
-                                                style={{ padding: '0.25rem 0.5rem', fontSize: '0.875rem' }}
-                                            >
-                                                Editar
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
+                                {medicines.map(med => {
+                                    const promoPercent = Number(med.promo_percent || 0);
+                                    const daysUntil = getDaysUntilExpiration(med.expiration_date);
+
+                                    return (
+                                        <tr key={med.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                                            <td style={{ padding: '1rem', fontWeight: '500' }}>
+                                                {med.name} <span style={{ fontSize: '0.8rem', color: 'gray' }}>({med.dosage})</span>
+                                            </td>
+                                            <td style={{ padding: '1rem' }}>{med.type}</td>
+                                            <td style={{ padding: '1rem' }}>{med.stock}</td>
+                                            <td style={{ padding: '1rem' }}>
+                                                {med.expiration_date ? (
+                                                    <div>
+                                                        <div>{formatDate(med.expiration_date)}</div>
+                                                        {daysUntil !== null && (
+                                                            <div style={{ fontSize: '0.75rem', color: daysUntil <= expiryWindowDays ? '#f59e0b' : 'var(--color-text-muted)' }}>
+                                                                {daysUntil < 0 ? `Vencido há ${Math.abs(daysUntil)} dias` : `Faltam ${daysUntil} dias`}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    '-'
+                                                )}
+                                            </td>
+                                            <td style={{ padding: '1rem' }}>
+                                                <span className={`badge ${med.stock >= 500 ? 'badge-success' : med.stock >= lowStockThreshold ? 'badge-info' : 'badge-warning'}`}>
+                                                    {med.stock >= 500 ? 'Alto' : med.stock >= lowStockThreshold ? 'Normal' : 'Baixo'}
+                                                </span>
+                                            </td>
+                                            <td style={{ padding: '1rem' }}>
+                                                {promoPercent > 0 ? (
+                                                    <span className="badge badge-success">{promoPercent}%</span>
+                                                ) : (
+                                                    <span className="badge badge-info">-</span>
+                                                )}
+                                            </td>
+                                            <td style={{ padding: '1rem' }}>
+                                                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => openEditForm(med)}
+                                                        className="btn btn-outline"
+                                                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
+                                                    >
+                                                        Editar
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleAdjustStock(med, 10)}
+                                                        className="btn btn-outline"
+                                                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
+                                                    >
+                                                        +10
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleAdjustStock(med, -10)}
+                                                        className="btn btn-outline"
+                                                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
+                                                    >
+                                                        -10
+                                                    </button>
+                                                    {promoPercent > 0 ? (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleRemovePromo(med)}
+                                                            className="btn btn-outline"
+                                                            style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
+                                                        >
+                                                            Remover Promo
+                                                        </button>
+                                                    ) : (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleApplyPromo(med, 10)}
+                                                            className="btn btn-primary"
+                                                            style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
+                                                        >
+                                                            Promo -10%
+                                                        </button>
+                                                    )}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleDeleteMedicine(med)}
+                                                        className="btn btn-outline"
+                                                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem', color: '#dc2626', borderColor: '#dc2626' }}
+                                                    >
+                                                        Remover
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>
@@ -728,6 +1023,41 @@ const AdminDashboard = () => {
                                 </table>
                             </div>
                         )}
+                    </div>
+                )}
+
+                {activeTab === 'settings' && (
+                    <div className="glass-card" style={{ padding: '2rem' }}>
+                        <h2 style={{ marginBottom: '1rem' }}>Configurações de Estoque</h2>
+                        <p style={{ color: 'var(--color-text-muted)', marginBottom: '1.5rem' }}>
+                            Ajuste parâmetros usados para alertas e validações internas.
+                        </p>
+
+                        <div style={{ display: 'grid', gap: '1rem', maxWidth: '420px' }}>
+                            <div>
+                                <label style={labelStyle}>Limite de estoque baixo</label>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    value={lowStockThreshold}
+                                    onChange={(e) => setLowStockThreshold(Number(e.target.value) || 0)}
+                                    style={inputStyle}
+                                />
+                            </div>
+                            <div>
+                                <label style={labelStyle}>Dias para alerta de vencimento</label>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    value={expiryWindowDays}
+                                    onChange={(e) => setExpiryWindowDays(Number(e.target.value) || 0)}
+                                    style={inputStyle}
+                                />
+                            </div>
+                            <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
+                                Esses valores afetam as listas de estoque baixo e produtos próximos ao vencimento.
+                            </div>
+                        </div>
                     </div>
                 )}
             </main>
@@ -831,6 +1161,15 @@ const AdminDashboard = () => {
                                         onChange={(e) => handleFormChange('wholesale_price', e.target.value)}
                                         style={inputStyle}
                                         required
+                                    />
+                                </div>
+                                <div>
+                                    <label style={labelStyle}>Validade</label>
+                                    <input
+                                        type="date"
+                                        value={formData.expiration_date || ''}
+                                        onChange={(e) => handleFormChange('expiration_date', e.target.value)}
+                                        style={inputStyle}
                                     />
                                 </div>
                                 <div>

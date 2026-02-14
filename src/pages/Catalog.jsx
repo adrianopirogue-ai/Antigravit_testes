@@ -27,7 +27,9 @@ const Catalog = ({ addToCart }) => {
                 ...med,
                 image: med.image_url,
                 wholesalePrice: med.wholesale_price,
-                requiresPrescription: med.requires_prescription
+                requiresPrescription: med.requires_prescription,
+                promoPercent: med.promo_percent ?? 0,
+                promo_percent: med.promo_percent ?? 0
             })));
         } catch (error) {
             console.error('Erro ao buscar medicamentos:', error);
@@ -115,14 +117,22 @@ const Catalog = ({ addToCart }) => {
                         gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
                         gap: '2rem'
                     }}>
-                        {filteredMedicines.map(med => (
-                            <div key={med.id} className="glass-card fade-in" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
-                                {/* Stock Badge */}
-                                {med.stock < 100 && (
-                                    <span className="badge badge-warning" style={{ position: 'absolute', top: '1rem', left: '1rem', zIndex: 1 }}>
-                                        Estoque Baixo
-                                    </span>
-                                )}
+                    {filteredMedicines.map(med => {
+                        const promoPercent = Number(med.promoPercent || 0);
+                        const promoMultiplier = promoPercent > 0 ? (1 - promoPercent / 100) : 1;
+                        const retailPrice = med.price;
+                        const wholesalePrice = med.wholesalePrice;
+                        const promoRetailPrice = retailPrice * promoMultiplier;
+                        const promoWholesalePrice = wholesalePrice * promoMultiplier;
+
+                        return (
+                        <div key={med.id} className="glass-card fade-in" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+                            {/* Stock Badge */}
+                            {med.stock < 100 && (
+                                <span className="badge badge-warning" style={{ position: 'absolute', top: '1rem', left: '1rem', zIndex: 1 }}>
+                                    Estoque Baixo
+                                </span>
+                            )}
                                 {med.stock >= 100 && med.stock < 500 && (
                                     <span className="badge badge-info" style={{ position: 'absolute', top: '1rem', left: '1rem', zIndex: 1 }}>
                                         Disponível
@@ -131,6 +141,11 @@ const Catalog = ({ addToCart }) => {
                                 {med.stock >= 500 && (
                                     <span className="badge badge-success" style={{ position: 'absolute', top: '1rem', left: '1rem', zIndex: 1 }}>
                                         ✓ Alto Estoque
+                                    </span>
+                                )}
+                                {promoPercent > 0 && (
+                                    <span className="badge badge-warning" style={{ position: 'absolute', top: '1rem', right: '1rem', zIndex: 1 }}>
+                                        Promo -{promoPercent}%
                                     </span>
                                 )}
 
@@ -172,12 +187,31 @@ const Catalog = ({ addToCart }) => {
                                     <div style={{ marginTop: 'auto' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                                             <div>
-                                                <span style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--color-primary)' }}>
-                                                    R$ {med.price.toFixed(2)}
-                                                </span>
-                                                <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-                                                    Atacado: R$ {med.wholesalePrice.toFixed(2)} (10+ un.)
-                                                </div>
+                                                {promoPercent > 0 ? (
+                                                    <>
+                                                        <span style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--color-primary)' }}>
+                                                            R$ {promoRetailPrice.toFixed(2)}
+                                                        </span>
+                                                        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                                                            <span style={{ textDecoration: 'line-through', marginRight: '0.5rem' }}>
+                                                                R$ {retailPrice.toFixed(2)}
+                                                            </span>
+                                                            Promoção aplicada
+                                                        </div>
+                                                        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                                                            Atacado: R$ {promoWholesalePrice.toFixed(2)} (10+ un.)
+                                                        </div>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <span style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--color-primary)' }}>
+                                                            R$ {retailPrice.toFixed(2)}
+                                                        </span>
+                                                        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                                                            Atacado: R$ {wholesalePrice.toFixed(2)} (10+ un.)
+                                                        </div>
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
 
@@ -219,8 +253,9 @@ const Catalog = ({ addToCart }) => {
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        ))}
+                        </div>
+                    );
+                    })}
                     </div>
 
                     {filteredMedicines.length === 0 && (

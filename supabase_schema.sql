@@ -12,10 +12,16 @@ CREATE TABLE IF NOT EXISTS medicines (
   description TEXT,
   stock INTEGER DEFAULT 0,
   image_url TEXT,
+  expiration_date DATE,
+  promo_percent DECIMAL(5,2) DEFAULT 0,
   requires_prescription BOOLEAN DEFAULT false,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+-- Adicionar colunas novas caso a tabela ja exista
+ALTER TABLE medicines ADD COLUMN IF NOT EXISTS expiration_date DATE;
+ALTER TABLE medicines ADD COLUMN IF NOT EXISTS promo_percent DECIMAL(5,2) DEFAULT 0;
 
 -- Tabela de Clientes
 CREATE TABLE IF NOT EXISTS customers (
