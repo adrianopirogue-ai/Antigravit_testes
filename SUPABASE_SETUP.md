@@ -68,6 +68,36 @@ create policy "Authenticated upload medicine images"
      - `https://adrianopirogue-ai.github.io/Antigravit_testes/admin/reset-password`
      - `https://adrianopirogue-ai.github.io/Antigravit_testes/cliente/reset-password`
 
+## Passo 7: Administradores que recebem pedidos
+
+1. No Supabase, vá em **SQL Editor**
+2. Insira pelo menos um administrador:
+   ```sql
+   insert into admins (name, email) values ('Admin', 'admin@exemplo.com');
+   ```
+   - O email deve existir e estar correto.
+
+## Passo 8: Envio de emails de pedido (Edge Function)
+
+O envio de email usa a função `send-order-email` em `supabase/functions/send-order-email/index.ts`.
+
+1. Instale o Supabase CLI (se ainda não tiver).
+2. Faça login: `supabase login`
+3. Deploy da função:
+   ```bash
+   supabase functions deploy send-order-email
+   ```
+4. Configure as secrets:
+   ```bash
+   supabase secrets set RESEND_API_KEY=... RESEND_FROM=seu@email.com SERVICE_ROLE_KEY=...
+   ```
+   - `RESEND_API_KEY`: chave da Resend (https://resend.com)
+   - `RESEND_FROM`: email de envio configurado na Resend
+   - `SERVICE_ROLE_KEY`: **Service Role Key** do Supabase (necessario para ler pedidos e clientes)
+
+Opcional:
+- `ADMIN_EMAILS`: lista separada por virgula para sobrescrever a tabela `admins`.
+
 ## Próximos Passos
 
 Após configurar, me envie uma confirmação e eu finalizo a integração:
