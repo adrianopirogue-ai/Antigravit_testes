@@ -8,6 +8,8 @@ const Cart = ({ cartItems, setCartItems }) => {
     const [profile, setProfile] = useState(null);
     const [authLoading, setAuthLoading] = useState(true);
     const [checkoutError, setCheckoutError] = useState('');
+    const [checkoutSuccess, setCheckoutSuccess] = useState('');
+    const [isCheckingOut, setIsCheckingOut] = useState(false);
     const resolvePrice = (item) => {
         if (item.priceType === 'wholesale') return item.wholesalePrice;
         if (item.priceType === 'retail') return item.price;
@@ -73,8 +75,9 @@ const Cart = ({ cartItems, setCartItems }) => {
         fetchProfile();
     }, [session]);
 
-    const handleCheckout = () => {
+    const handleCheckout = async () => {
         setCheckoutError('');
+        setCheckoutSuccess('');
         if (!session) {
             setCheckoutError('Faça login para finalizar a compra.');
             return;
@@ -84,8 +87,57 @@ const Cart = ({ cartItems, setCartItems }) => {
             return;
         }
         if (cartItems.length === 0) return;
-        alert('Pedido realizado com sucesso! Em breve você recebera os detalhes da entrega.');
-        setCartItems([]);
+
+        setIsCheckingOut(true);
+        try {
+            const { data: orderData, error: orderError } = await supabase
+                .from('orders')
+                .insert([{
+                    user_id: session.user.id,
+                    total,
+                    status: 'pending'
+                }])
+                .select('id')
+                .single();
+
+            if (orderError) throw orderError;
+
+            const itemsPayload = cartItems.map((item) => ({
+                order_id: orderData.id,
+                medicine_id: item.id,
+                quantity: item.quantity,
+                unit_price: resolvePrice(item)
+            }));
+
+            const { error: itemsError } = await supabase
+                .from('order_items')
+                .insert(itemsPayload);
+
+            if (itemsError) throw itemsError;
+
+            try {
+                const { error: emailError } = await supabase.functions.invoke('send-order-email', {
+                    body: { order_id: orderData.id }
+                });
+
+                if (emailError) {
+                    console.warn('Erro ao enviar email do pedido:', emailError);
+                    setCheckoutSuccess('Pedido registrado! Email aos administradores sera enviado em instantes.');
+                } else {
+                    setCheckoutSuccess('Pedido registrado! Os administradores receberam um email com os detalhes.');
+                }
+            } catch (error) {
+                console.warn('Falha ao chamar funcao de email:', error);
+                setCheckoutSuccess('Pedido registrado! Email aos administradores sera enviado em instantes.');
+            }
+
+            setCartItems([]);
+        } catch (error) {
+            console.error('Erro ao finalizar compra:', error);
+            setCheckoutError(error.message || 'Erro ao finalizar a compra.');
+        } finally {
+            setIsCheckingOut(false);
+        }
     };
 
     return (
@@ -169,6 +221,12 @@ const Cart = ({ cartItems, setCartItems }) => {
                             </div>
                         )}
 
+                        {checkoutSuccess && (
+                            <div style={{ padding: '0.75rem 1rem', background: '#dcfce7', color: '#166534', borderRadius: '0.5rem', marginBottom: '1rem', fontSize: '0.85rem' }}>
+                                {checkoutSuccess}
+                            </div>
+                        )}
+
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', color: 'var(--color-text-muted)' }}>
                             <span>Subtotal</span>
                             <span>R$ {total.toFixed(2)}</span>
@@ -185,11 +243,11 @@ const Cart = ({ cartItems, setCartItems }) => {
 
                         <button
                             onClick={handleCheckout}
-                            disabled={cartItems.length === 0 || !session || !profile}
+                            disabled={cartItems.length === 0 || !session || !profile || isCheckingOut}
                             className="btn btn-primary"
-                            style={{ width: '100%', opacity: cartItems.length === 0 || !session || !profile ? 0.5 : 1 }}
+                            style={{ width: '100%', opacity: cartItems.length === 0 || !session || !profile || isCheckingOut ? 0.5 : 1 }}
                         >
-                            Finalizar Compra <ArrowRight size={20} />
+                            {isCheckingOut ? 'Finalizando...' : <>Finalizar Compra <ArrowRight size={20} /></>}
                         </button>
                     </div>
                 </div>

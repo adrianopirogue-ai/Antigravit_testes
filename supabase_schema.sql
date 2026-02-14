@@ -37,6 +37,16 @@ CREATE TABLE IF NOT EXISTS customers (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+-- Tabela de Administradores (emails para notificacao de pedidos)
+CREATE TABLE IF NOT EXISTS admins (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name TEXT,
+  email TEXT NOT NULL UNIQUE,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
 -- Tabela de Pedidos
 CREATE TABLE IF NOT EXISTS orders (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -78,6 +88,7 @@ $$ language 'plpgsql';
 DROP TRIGGER IF EXISTS update_medicines_updated_at ON medicines;
 DROP TRIGGER IF EXISTS update_orders_updated_at ON orders;
 DROP TRIGGER IF EXISTS update_customers_updated_at ON customers;
+DROP TRIGGER IF EXISTS update_admins_updated_at ON admins;
 
 CREATE TRIGGER update_medicines_updated_at BEFORE UPDATE ON medicines
 FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -88,11 +99,15 @@ FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_customers_updated_at BEFORE UPDATE ON customers
 FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+CREATE TRIGGER update_admins_updated_at BEFORE UPDATE ON admins
+FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 -- Row Level Security (RLS) - Segurança
 ALTER TABLE medicines ENABLE ROW LEVEL SECURITY;
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE admins ENABLE ROW LEVEL SECURITY;
 
 -- Remover políticas existentes (se houver)
 DROP POLICY IF EXISTS "Medicamentos são visíveis para todos" ON medicines;
@@ -103,6 +118,8 @@ DROP POLICY IF EXISTS "Acesso a itens via pedido" ON order_items;
 DROP POLICY IF EXISTS "Clientes podem ver seu perfil" ON customers;
 DROP POLICY IF EXISTS "Clientes podem criar perfil" ON customers;
 DROP POLICY IF EXISTS "Clientes podem atualizar perfil" ON customers;
+DROP POLICY IF EXISTS "Admins podem ler" ON admins;
+DROP POLICY IF EXISTS "Admins podem escrever" ON admins;
 
 -- Políticas de Acesso (RLS Policies)
 
