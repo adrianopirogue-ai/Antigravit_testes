@@ -347,13 +347,23 @@ const AdminDashboard = () => {
     };
 
     const handleDownloadReport = () => {
-        const doc = generateStockReport(medicines);
-        doc.save(`Estoque_BrasilMais_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`);
+        try {
+            const doc = generateStockReport(medicines);
+            doc.save(`Estoque_BrasilMais_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`);
+        } catch (error) {
+            console.error('Erro ao gerar relatório completo:', error);
+            alert('Nao foi possivel gerar o relatorio. Verifique os dados do estoque e tente novamente.');
+        }
     };
 
     const handleDownloadCriticalReport = () => {
-        const doc = generateCriticalStockReport(medicines);
-        doc.save(`Estoque_Critico_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`);
+        try {
+            const doc = generateCriticalStockReport(medicines);
+            doc.save(`Estoque_Critico_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`);
+        } catch (error) {
+            console.error('Erro ao gerar relatório crítico:', error);
+            alert('Nao foi possivel gerar o relatorio crítico. Verifique os dados do estoque e tente novamente.');
+        }
     };
 
     const handlePrint = () => {

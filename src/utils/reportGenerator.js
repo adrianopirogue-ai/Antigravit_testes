@@ -9,6 +9,13 @@ const formatDate = (value) => {
     return date.toLocaleDateString('pt-BR');
 };
 
+const toNumber = (value) => {
+    if (value === null || value === undefined) return 0;
+    const normalized = typeof value === 'string' ? value.replace(',', '.') : value;
+    const num = Number(normalized);
+    return Number.isFinite(num) ? num : 0;
+};
+
 const daysUntil = (value) => {
     if (!value) return null;
     const date = new Date(`${value}T00:00:00`);
@@ -78,9 +85,9 @@ export const generateStockReport = (medicines) => {
     const lowStockThreshold = 100;
     const expiryWindowDays = 30;
     const totalProducts = medicines.length;
-    const totalStock = medicines.reduce((sum, med) => sum + med.stock, 0);
-    const totalValue = medicines.reduce((sum, med) => sum + (med.price * med.stock), 0);
-    const lowStockItems = medicines.filter(med => med.stock < lowStockThreshold).length;
+    const totalStock = medicines.reduce((sum, med) => sum + toNumber(med.stock), 0);
+    const totalValue = medicines.reduce((sum, med) => sum + (toNumber(med.price) * toNumber(med.stock)), 0);
+    const lowStockItems = medicines.filter(med => toNumber(med.stock) < lowStockThreshold).length;
     const expiringSoonItems = medicines.filter((med) => {
         const days = daysUntil(med.expiration_date);
         return days !== null && days >= 0 && days <= expiryWindowDays;
@@ -105,14 +112,14 @@ export const generateStockReport = (medicines) => {
 
     // Charts
     const statusData = [
-        { label: 'Baixo', value: medicines.filter(m => m.stock < lowStockThreshold).length, color: [239, 68, 68] },
-        { label: 'Normal', value: medicines.filter(m => m.stock >= lowStockThreshold && m.stock < 500).length, color: [59, 130, 246] },
-        { label: 'Alto', value: medicines.filter(m => m.stock >= 500).length, color: [16, 185, 129] }
+        { label: 'Baixo', value: medicines.filter(m => toNumber(m.stock) < lowStockThreshold).length, color: [239, 68, 68] },
+        { label: 'Normal', value: medicines.filter(m => toNumber(m.stock) >= lowStockThreshold && toNumber(m.stock) < 500).length, color: [59, 130, 246] },
+        { label: 'Alto', value: medicines.filter(m => toNumber(m.stock) >= 500).length, color: [16, 185, 129] }
     ];
 
     const typeTotals = medicines.reduce((acc, med) => {
         const label = getMedicineTypeLabel(med.type);
-        acc[label] = (acc[label] || 0) + med.stock;
+        acc[label] = (acc[label] || 0) + toNumber(med.stock);
         return acc;
     }, {});
 
@@ -137,18 +144,23 @@ export const generateStockReport = (medicines) => {
     cursorY += 60;
 
     // Table
-    const tableData = medicines.map(med => [
-        med.name,
-        med.dosage,
-        getMedicineTypeLabel(med.type),
-        med.stock,
-        formatDate(med.expiration_date),
-        `${Number(med.promo_percent || 0).toFixed(0)}%`,
-        `R$ ${med.price.toFixed(2)}`,
-        `R$ ${(med.wholesale_price ?? 0).toFixed(2)}`,
-        `R$ ${(med.price * med.stock).toFixed(2)}`,
-        med.stock >= 500 ? 'Alto' : med.stock >= lowStockThreshold ? 'Normal' : 'Baixo'
-    ]);
+    const tableData = medicines.map(med => {
+        const priceValue = toNumber(med.price);
+        const wholesaleValue = toNumber(med.wholesale_price);
+        const stockValue = toNumber(med.stock);
+        return [
+            med.name,
+            med.dosage,
+            getMedicineTypeLabel(med.type),
+            stockValue,
+            formatDate(med.expiration_date),
+            `${toNumber(med.promo_percent).toFixed(0)}%`,
+            `R$ ${priceValue.toFixed(2)}`,
+            `R$ ${wholesaleValue.toFixed(2)}`,
+            `R$ ${(priceValue * stockValue).toFixed(2)}`,
+            stockValue >= 500 ? 'Alto' : stockValue >= lowStockThreshold ? 'Normal' : 'Baixo'
+        ];
+    });
 
     doc.autoTable({
         head: [['Produto', 'Dosagem', 'Categoria', 'Qtd', 'Validade', 'Promo', 'Preço Un.', 'Preço Atacado', 'Valor Total', 'Status']],
@@ -194,7 +206,7 @@ export const generateStockReport = (medicines) => {
     doc.text('Sugestoes de reposicao', 20, cursorY);
     cursorY += 6;
 
-    const lowStockList = medicines.filter(med => med.stock < lowStockThreshold);
+    const lowStockList = medicines.filter(med => toNumber(med.stock) < lowStockThreshold);
     if (lowStockList.length === 0) {
         doc.setFontSize(10);
         doc.setTextColor(90);
@@ -204,7 +216,7 @@ export const generateStockReport = (medicines) => {
         doc.setFontSize(10);
         doc.setTextColor(60);
         lowStockList.slice(0, 8).forEach((med) => {
-            const suggested = Math.max(0, lowStockThreshold - med.stock);
+            const suggested = Math.max(0, lowStockThreshold - toNumber(med.stock));
             doc.text(`- Repor ${med.name}: falta ${suggested} un. para atingir ${lowStockThreshold}.`, 20, cursorY);
             cursorY += 5;
         });
@@ -242,7 +254,7 @@ export const generateStockReport = (medicines) => {
 };
 
 export const generateCriticalStockReport = (medicines) => {
-    const criticalMedicines = medicines.filter(med => med.stock < 100);
+    const criticalMedicines = medicines.filter(med => toNumber(med.stock) < 100);
     const doc = new jsPDF();
 
     // Header
@@ -264,13 +276,17 @@ export const generateCriticalStockReport = (medicines) => {
     doc.text(`⚠️ ${criticalMedicines.length} produtos precisam de reposição urgente`, 20, 50);
 
     // Table
-    const tableData = criticalMedicines.map(med => [
-        med.name,
-        med.dosage,
-        med.stock,
-        `R$ ${med.price.toFixed(2)}`,
-        med.stock < 50 ? 'CRÍTICO' : 'BAIXO'
-    ]);
+    const tableData = criticalMedicines.map(med => {
+        const priceValue = toNumber(med.price);
+        const stockValue = toNumber(med.stock);
+        return [
+            med.name,
+            med.dosage,
+            stockValue,
+            `R$ ${priceValue.toFixed(2)}`,
+            stockValue < 50 ? 'CRÍTICO' : 'BAIXO'
+        ];
+    });
 
     doc.autoTable({
         head: [['Produto', 'Dosagem', 'Qtd Atual', 'Preço', 'Prioridade']],
