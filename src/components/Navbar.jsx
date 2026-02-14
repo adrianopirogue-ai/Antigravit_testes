@@ -1,9 +1,57 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ShoppingCart, Menu, X, User, Pill, Search } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 const Navbar = ({ cartCount }) => {
     const [isOpen, setIsOpen] = useState(false);
+    const [session, setSession] = useState(null);
+    const [customerName, setCustomerName] = useState('');
+
+    useEffect(() => {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            setSession(session);
+        });
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            setSession(session);
+        });
+
+        return () => subscription.unsubscribe();
+    }, []);
+
+    useEffect(() => {
+        if (!session?.user) {
+            setCustomerName('');
+            return;
+        }
+
+        const fallbackName = session.user.user_metadata?.name || session.user.email || '';
+        let isActive = true;
+
+        supabase
+            .from('customers')
+            .select('name')
+            .eq('user_id', session.user.id)
+            .single()
+            .then(({ data, error }) => {
+                if (!isActive) return;
+                if (!error && data?.name) {
+                    setCustomerName(data.name);
+                } else {
+                    setCustomerName(fallbackName);
+                }
+            })
+            .catch(() => {
+                if (isActive) {
+                    setCustomerName(fallbackName);
+                }
+            });
+
+        return () => {
+            isActive = false;
+        };
+    }, [session]);
 
     return (
         <nav className="glass-card" style={{ position: 'sticky', top: '1rem', zIndex: 50, marginBottom: '2rem' }}>
@@ -33,6 +81,29 @@ const Navbar = ({ cartCount }) => {
 
                     {/* Actions */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        {session?.user && customerName && (
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.4rem',
+                                padding: '0.45rem 0.75rem',
+                                borderRadius: '999px',
+                                background: 'rgba(0, 156, 59, 0.12)',
+                                color: 'var(--color-primary)',
+                                fontSize: '0.85rem',
+                                fontWeight: '600'
+                            }}>
+                                <User size={16} />
+                                <span style={{
+                                    maxWidth: '180px',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap'
+                                }}>
+                                    {customerName}
+                                </span>
+                            </div>
+                        )}
                         <button className="btn btn-outline" style={{ padding: '0.5rem' }}>
                             <Search size={20} />
                         </button>
@@ -70,6 +141,19 @@ const Navbar = ({ cartCount }) => {
                 {/* Mobile Menu */}
                 {isOpen && (
                     <div style={{ padding: '1rem 0', borderTop: '1px solid var(--color-border)' }}>
+                        {session?.user && customerName && (
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem',
+                                padding: '0.5rem 0 1rem',
+                                color: 'var(--color-primary)',
+                                fontWeight: '600'
+                            }}>
+                                <User size={18} />
+                                <span>{customerName}</span>
+                            </div>
+                        )}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                             <Link to="/" onClick={() => setIsOpen(false)}>Início</Link>
                             <Link to="/catalog" onClick={() => setIsOpen(false)}>Catálogo</Link>
