@@ -1,3 +1,4 @@
+# Trigger: Secrets configured by user
 name: Deploy to GitHub Pages
 
 on:
