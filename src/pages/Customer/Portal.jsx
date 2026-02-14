@@ -221,8 +221,11 @@ const CustomerPortal = () => {
 
                 if (insertError) throw insertError;
 
-                setSuccess('Cadastro criado com sucesso!');
+                setSuccess('Cadastro criado com sucesso! Redirecionando para o catálogo...');
                 setMode('login');
+                setTimeout(() => {
+                    window.location.href = `${baseUrl}catalog`;
+                }, 1500);
                 setRegisterData({
                     ...createEmptyProfile(),
                     password: '',
