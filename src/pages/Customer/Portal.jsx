@@ -682,7 +682,10 @@ const CustomerPortal = () => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
                     <div>
                         <h2 style={{ fontSize: '1.75rem', color: 'var(--color-primary)', marginBottom: '0.25rem' }}>Area do Cliente</h2>
-                        <p style={{ color: 'var(--color-text-muted)' }}>
+                        <p style={{ color: 'var(--color-text)' }}>
+                            {profileData.name?.trim() || session.user.user_metadata?.name || session.user.email}
+                        </p>
+                        <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>
                             {session.user.email}
                         </p>
                     </div>
