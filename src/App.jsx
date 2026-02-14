@@ -14,17 +14,18 @@ function App() {
 
     console.log('🚀 App carregado. Base URL:', import.meta.env.BASE_URL);
 
-    const addToCart = (product, quantity = 1) => {
-        const existingItemIndex = cartItems.findIndex(item => item.id === product.id);
+    const addToCart = (product, quantity = 1, priceType = 'retail') => {
+        const normalizedType = priceType === 'wholesale' ? 'wholesale' : 'retail';
+        const existingItemIndex = cartItems.findIndex(item => item.id === product.id && item.priceType === normalizedType);
 
         if (existingItemIndex > -1) {
             const newCart = [...cartItems];
             newCart[existingItemIndex].quantity += quantity;
             setCartItems(newCart);
-            alert(`Quantidade atualizada: ${newCart[existingItemIndex].quantity} un. de ${product.name}`);
+            alert(`Quantidade atualizada: ${newCart[existingItemIndex].quantity} un. de ${product.name} (${normalizedType === 'wholesale' ? 'atacado' : 'varejo'})`);
         } else {
-            setCartItems([...cartItems, { ...product, quantity }]);
-            alert(`${quantity}x ${product.name} adicionado ao carrinho!`);
+            setCartItems([...cartItems, { ...product, quantity, priceType: normalizedType }]);
+            alert(`${quantity}x ${product.name} adicionado ao carrinho (${normalizedType === 'wholesale' ? 'atacado' : 'varejo'})!`);
         }
     };
 

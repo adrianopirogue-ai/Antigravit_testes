@@ -2,9 +2,21 @@ import React from 'react';
 import { Trash2, ArrowRight } from 'lucide-react';
 
 const Cart = ({ cartItems, setCartItems }) => {
+    const resolvePrice = (item) => {
+        if (item.priceType === 'wholesale') return item.wholesalePrice;
+        if (item.priceType === 'retail') return item.price;
+        return item.quantity >= 10 ? item.wholesalePrice : item.price;
+    };
+
+    const resolvePriceLabel = (item) => {
+        if (item.priceType === 'wholesale') return 'Atacado';
+        if (item.priceType === 'retail') return 'Varejo';
+        return item.quantity >= 10 ? 'Atacado' : 'Varejo';
+    };
+
     const calculateTotal = () => {
         return cartItems.reduce((acc, item) => {
-            const price = item.quantity >= 10 ? item.wholesalePrice : item.price;
+            const price = resolvePrice(item);
             return acc + (price * item.quantity);
         }, 0);
     };
@@ -37,8 +49,8 @@ const Cart = ({ cartItems, setCartItems }) => {
                     ) : (
                         <div className="glass-card" style={{ padding: '1.5rem' }}>
                             {cartItems.map((item, index) => {
-                                const isWholesale = item.quantity >= 10;
-                                const currentPrice = isWholesale ? item.wholesalePrice : item.price;
+                                const currentPrice = resolvePrice(item);
+                                const priceLabel = resolvePriceLabel(item);
 
                                 return (
                                     <div key={index} style={{
@@ -53,9 +65,14 @@ const Cart = ({ cartItems, setCartItems }) => {
                                             <div>
                                                 <h3 style={{ fontSize: '1.1rem' }}>{item.name}</h3>
                                                 <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>{item.dosage}</p>
-                                                {isWholesale && (
+                                                {priceLabel === 'Atacado' && (
                                                     <span style={{ fontSize: '0.75rem', color: 'var(--color-primary)', fontWeight: 'bold' }}>
-                                                        Preço de Atacado Aplicado!
+                                                        Preço de Atacado aplicado!
+                                                    </span>
+                                                )}
+                                                {priceLabel === 'Varejo' && (
+                                                    <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                                                        Preço de Varejo
                                                     </span>
                                                 )}
                                             </div>

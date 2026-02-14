@@ -37,6 +37,20 @@ const Catalog = ({ addToCart }) => {
         }
     };
 
+    const handleAddToCart = (medicine, priceType) => {
+        const input = document.getElementById(`qty-${medicine.id}`);
+        const rawQty = parseInt(input?.value, 10);
+        let qty = Number.isFinite(rawQty) && rawQty > 0 ? rawQty : 1;
+
+        if (priceType === 'wholesale' && qty < 10) {
+            qty = 10;
+            if (input) input.value = '10';
+            alert('Compra no atacado requer minimo de 10 unidades. Quantidade ajustada para 10.');
+        }
+
+        addToCart(medicine, qty, priceType);
+    };
+
     const filteredMedicines = medicines.filter(med => {
         const matchesSearch = med.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             med.description.toLowerCase().includes(searchTerm.toLowerCase());
@@ -167,23 +181,29 @@ const Catalog = ({ addToCart }) => {
                                             </div>
                                         </div>
 
-                                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                            <input
-                                                type="number"
-                                                min="1"
-                                                defaultValue="1"
-                                                id={`qty-${med.id}`}
-                                                style={{ width: '60px', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--color-border)' }}
-                                            />
+                                        <div style={{ display: 'grid', gap: '0.5rem' }}>
+                                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                                <input
+                                                    type="number"
+                                                    min="1"
+                                                    defaultValue="1"
+                                                    id={`qty-${med.id}`}
+                                                    style={{ width: '70px', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--color-border)' }}
+                                                />
+                                                <button
+                                                    onClick={() => handleAddToCart(med, 'retail')}
+                                                    className="btn btn-primary"
+                                                    style={{ flex: 1 }}
+                                                >
+                                                    <Plus size={20} /> Varejo
+                                                </button>
+                                            </div>
                                             <button
-                                                onClick={() => {
-                                                    const qty = parseInt(document.getElementById(`qty-${med.id}`).value) || 1;
-                                                    addToCart(med, qty);
-                                                }}
-                                                className="btn btn-primary"
-                                                style={{ flex: 1 }}
+                                                onClick={() => handleAddToCart(med, 'wholesale')}
+                                                className="btn btn-outline"
+                                                style={{ width: '100%' }}
                                             >
-                                                <Plus size={20} /> Adicionar
+                                                <Plus size={18} /> Atacado (10+)
                                             </button>
                                         </div>
                                     </div>
