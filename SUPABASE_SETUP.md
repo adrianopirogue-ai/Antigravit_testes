@@ -41,6 +41,23 @@
 3. Cole o SQL que está no arquivo `supabase_schema.sql` (será criado em breve)
 4. Clique em **"Run"**
 
+## Passo 5: Storage para imagens
+
+1. No Supabase, va em **Storage** e clique em **Create bucket**
+2. Nome do bucket: `medicine-images`
+3. Marque como **Public** (recomendado para exibir imagens no catalogo)
+
+Se preferir bucket privado, crie as politicas abaixo no SQL Editor:
+```sql
+create policy "Public read medicine images"
+  on storage.objects for select
+  using (bucket_id = 'medicine-images');
+
+create policy "Authenticated upload medicine images"
+  on storage.objects for insert
+  with check (bucket_id = 'medicine-images' and auth.role() = 'authenticated');
+```
+
 ## Próximos Passos
 
 Após configurar, me envie uma confirmação e eu finalizo a integração:

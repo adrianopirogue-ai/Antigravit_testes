@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { LayoutDashboard, Package, Users, Settings, LogOut, Loader2, FileText, Printer, TrendingDown, DollarSign, AlertTriangle } from 'lucide-react';
@@ -29,6 +29,11 @@ const AdminDashboard = () => {
     const [formError, setFormError] = useState('');
     const [editingMedicine, setEditingMedicine] = useState(null);
     const [formData, setFormData] = useState(createEmptyForm());
+    const [imageFile, setImageFile] = useState(null);
+    const [imagePreview, setImagePreview] = useState('');
+    const fileInputRef = useRef(null);
+    const imageBucket = 'medicine-images';
+    const maxImageSizeBytes = 5 * 1024 * 1024;
     const inputStyle = {
         width: '100%',
         padding: '0.75rem',
@@ -81,10 +86,30 @@ const AdminDashboard = () => {
         }
     };
 
+    const revokePreview = (url) => {
+        if (url && url.startsWith('blob:')) {
+            URL.revokeObjectURL(url);
+        }
+    };
+
+    const clearFileInput = () => {
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+    };
+
+    const resetImageState = (previewUrl = '') => {
+        revokePreview(imagePreview);
+        clearFileInput();
+        setImageFile(null);
+        setImagePreview(previewUrl || '');
+    };
+
     const openAddForm = () => {
         setEditingMedicine(null);
         setFormError('');
         setFormData(createEmptyForm());
+        resetImageState('');
         setIsFormOpen(true);
     };
 
@@ -102,6 +127,7 @@ const AdminDashboard = () => {
             image_url: medicine.image_url || '',
             requires_prescription: !!medicine.requires_prescription,
         });
+        resetImageState(medicine.image_url || '');
         setIsFormOpen(true);
     };
 
@@ -109,10 +135,37 @@ const AdminDashboard = () => {
         setIsFormOpen(false);
         setEditingMedicine(null);
         setFormError('');
+        resetImageState('');
     };
 
     const handleFormChange = (field, value) => {
         setFormData((prev) => ({ ...prev, [field]: value }));
+    };
+
+    const handleImageChange = (event) => {
+        setFormError('');
+        const file = event.target.files && event.target.files[0];
+        if (!file) {
+            resetImageState(editingMedicine?.image_url || formData.image_url || '');
+            return;
+        }
+
+        if (!file.type.startsWith('image/')) {
+            setFormError('Selecione um arquivo de imagem valido.');
+            event.target.value = '';
+            return;
+        }
+
+        if (file.size > maxImageSizeBytes) {
+            setFormError('Imagem muito grande. Maximo 5MB.');
+            event.target.value = '';
+            return;
+        }
+
+        revokePreview(imagePreview);
+        const objectUrl = URL.createObjectURL(file);
+        setImageFile(file);
+        setImagePreview(objectUrl);
     };
 
     const toNumber = (value) => Number(String(value).replace(',', '.'));
@@ -150,20 +203,48 @@ const AdminDashboard = () => {
             return;
         }
 
-        const payload = {
-            name: formData.name.trim(),
-            dosage: formData.dosage.trim(),
-            type: formData.type.trim(),
-            stock: Math.trunc(stockValue),
-            price: priceValue,
-            wholesale_price: wholesaleValue,
-            description: formData.description.trim() ? formData.description.trim() : null,
-            image_url: formData.image_url.trim() ? formData.image_url.trim() : null,
-            requires_prescription: !!formData.requires_prescription,
-        };
+        let imageUrl = formData.image_url.trim() ? formData.image_url.trim() : null;
 
         setIsSaving(true);
         try {
+            if (imageFile) {
+                const fileExt = imageFile.name.includes('.') ? imageFile.name.split('.').pop() : 'jpg';
+                const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+                const folder = session?.user?.id || 'public';
+                const filePath = `${folder}/${fileName}.${fileExt}`;
+                const { error: uploadError } = await supabase.storage
+                    .from(imageBucket)
+                    .upload(filePath, imageFile, {
+                        cacheControl: '3600',
+                        upsert: true,
+                        contentType: imageFile.type
+                    });
+
+                if (uploadError) throw uploadError;
+
+                const { data: publicUrlData } = supabase.storage
+                    .from(imageBucket)
+                    .getPublicUrl(filePath);
+
+                if (!publicUrlData?.publicUrl) {
+                    throw new Error('Nao foi possivel obter a URL da imagem.');
+                }
+
+                imageUrl = publicUrlData.publicUrl;
+            }
+
+            const payload = {
+                name: formData.name.trim(),
+                dosage: formData.dosage.trim(),
+                type: formData.type.trim(),
+                stock: Math.trunc(stockValue),
+                price: priceValue,
+                wholesale_price: wholesaleValue,
+                description: formData.description.trim() ? formData.description.trim() : null,
+                image_url: imageUrl,
+                requires_prescription: !!formData.requires_prescription,
+            };
+
             let error;
             if (editingMedicine) {
                 ({ error } = await supabase
@@ -182,7 +263,12 @@ const AdminDashboard = () => {
             closeForm();
         } catch (error) {
             console.error('Erro ao salvar medicamento:', error);
-            setFormError(error.message || 'Erro ao salvar medicamento.');
+            let message = error.message || 'Erro ao salvar medicamento.';
+            const lowerMessage = message.toLowerCase();
+            if (lowerMessage.includes('bucket') || lowerMessage.includes('storage')) {
+                message = `${message} Verifique o bucket ${imageBucket} e as politicas no Supabase.`;
+            }
+            setFormError(message);
         } finally {
             setIsSaving(false);
         }
@@ -600,16 +686,59 @@ const AdminDashboard = () => {
                                     />
                                 </div>
                                 <div>
-                                    <label style={labelStyle}>URL da Imagem</label>
+                                    <label style={labelStyle}>Imagem local</label>
+                                    <input
+                                        ref={fileInputRef}
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleImageChange}
+                                        style={inputStyle}
+                                    />
+                                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '0.35rem' }}>
+                                        JPG/PNG ate 5MB. Se selecionar arquivo, ele substitui a URL.
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style={labelStyle}>URL da Imagem (opcional)</label>
                                     <input
                                         type="url"
                                         value={formData.image_url}
-                                        onChange={(e) => handleFormChange('image_url', e.target.value)}
+                                        onChange={(e) => {
+                                            handleFormChange('image_url', e.target.value);
+                                            if (!imageFile) {
+                                                setImagePreview(e.target.value);
+                                            }
+                                        }}
                                         style={inputStyle}
                                         placeholder="https://"
                                     />
                                 </div>
                             </div>
+
+                            {imagePreview && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                                    <img
+                                        src={imagePreview}
+                                        alt="Preview da imagem"
+                                        style={{
+                                            width: '120px',
+                                            height: '120px',
+                                            objectFit: 'cover',
+                                            borderRadius: '0.75rem',
+                                            border: '1px solid var(--color-border)'
+                                        }}
+                                    />
+                                    {imageFile && (
+                                        <button
+                                            type="button"
+                                            className="btn btn-outline"
+                                            onClick={() => resetImageState(formData.image_url || '')}
+                                        >
+                                            Remover imagem local
+                                        </button>
+                                    )}
+                                </div>
+                            )}
 
                             <div>
                                 <label style={labelStyle}>Descricao</label>
