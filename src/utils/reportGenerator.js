@@ -1,5 +1,5 @@
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { getMedicineTypeLabel } from './medicineTypes';
 
 const formatDate = (value) => {
@@ -151,7 +151,7 @@ export const generateStockReport = (medicines) => {
     cursorY += 60;
 
     // Table
-    if (typeof doc.autoTable !== 'function') {
+    if (typeof autoTable !== 'function') {
         doc.setFontSize(10);
         doc.setTextColor(120);
         doc.text('Tabela nao disponivel (plugin autoTable nao carregado).', 20, cursorY);
@@ -176,7 +176,7 @@ export const generateStockReport = (medicines) => {
         ];
     });
 
-    doc.autoTable({
+    autoTable(doc, {
         head: [['Produto', 'Dosagem', 'Categoria', 'Qtd', 'Validade', 'Promo', 'Preço Un.', 'Preço Atacado', 'Valor Total', 'Status']],
         body: tableData,
         startY: cursorY,
@@ -302,7 +302,14 @@ export const generateCriticalStockReport = (medicines) => {
         ];
     });
 
-    doc.autoTable({
+    if (typeof autoTable !== 'function') {
+        doc.setFontSize(10);
+        doc.setTextColor(120);
+        doc.text('Tabela nao disponivel (plugin autoTable nao carregado).', 20, 60);
+        return doc;
+    }
+
+    autoTable(doc, {
         head: [['Produto', 'Dosagem', 'Qtd Atual', 'Preço', 'Prioridade']],
         body: tableData,
         startY: 60,
