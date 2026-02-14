@@ -31,7 +31,7 @@ const drawBarChart = (doc, x, y, width, height, data, title) => {
     const chartTop = y + 8;
     const chartHeight = height - 16;
     const chartWidth = width;
-    const barWidth = chartWidth / data.length;
+    const barWidth = data.length ? chartWidth / data.length : chartWidth;
 
     doc.setFontSize(11);
     doc.setTextColor(0);
@@ -39,6 +39,13 @@ const drawBarChart = (doc, x, y, width, height, data, title) => {
 
     doc.setDrawColor(226, 232, 240);
     doc.rect(x, chartTop, chartWidth, chartHeight);
+
+    if (!data.length) {
+        doc.setFontSize(9);
+        doc.setTextColor(120);
+        doc.text('Sem dados', x + 6, chartTop + chartHeight / 2);
+        return;
+    }
 
     data.forEach((item, index) => {
         const barHeight = (item.value / maxValue) * (chartHeight - 12);
@@ -144,6 +151,13 @@ export const generateStockReport = (medicines) => {
     cursorY += 60;
 
     // Table
+    if (typeof doc.autoTable !== 'function') {
+        doc.setFontSize(10);
+        doc.setTextColor(120);
+        doc.text('Tabela nao disponivel (plugin autoTable nao carregado).', 20, cursorY);
+        return doc;
+    }
+
     const tableData = medicines.map(med => {
         const priceValue = toNumber(med.price);
         const wholesaleValue = toNumber(med.wholesale_price);
@@ -197,7 +211,7 @@ export const generateStockReport = (medicines) => {
         }
     });
 
-    cursorY = doc.lastAutoTable.finalY + 10;
+    cursorY = (doc.lastAutoTable?.finalY || cursorY) + 10;
     ensureSpace(60);
 
     // Suggestions
