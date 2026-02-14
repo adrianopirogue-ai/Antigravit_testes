@@ -762,13 +762,11 @@ const CustomerPortal = () => {
                                 value={profileData.cpf_cnpj}
                                 onChange={(e) => setProfileData((prev) => ({ ...prev, cpf_cnpj: e.target.value }))}
                                 required
-                                readOnly
                                 style={{
                                     width: '100%',
                                     padding: '0.75rem',
                                     borderRadius: '0.5rem',
-                                    border: '1px solid var(--color-border)',
-                                    background: '#f8fafc'
+                                    border: '1px solid var(--color-border)'
                                 }}
                             />
                         </div>
