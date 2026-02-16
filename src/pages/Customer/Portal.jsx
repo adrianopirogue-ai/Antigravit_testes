@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { User, LogOut, Loader2, CheckCircle } from 'lucide-react';
 
@@ -35,6 +35,7 @@ const CustomerPortal = () => {
     const [success, setSuccess] = useState('');
     const [saving, setSaving] = useState(false);
 
+    const navigate = useNavigate();
     const baseUrl = import.meta.env.BASE_URL || '/';
 
     useEffect(() => {
@@ -140,7 +141,7 @@ const CustomerPortal = () => {
             if (error) throw error;
             setSuccess('Login realizado com sucesso. Redirecionando para o catalogo...');
             setTimeout(() => {
-                window.location.href = `${baseUrl}catalog`;
+                navigate('/catalog', { replace: true });
             }, 700);
         } catch (error) {
             console.error('Erro no login:', error);
@@ -232,7 +233,7 @@ const CustomerPortal = () => {
                 setSuccess('Cadastro criado com sucesso! Redirecionando para o catálogo...');
                 setMode('login');
                 setTimeout(() => {
-                    window.location.href = `${baseUrl}catalog`;
+                    navigate('/catalog', { replace: true });
                 }, 1500);
                 setRegisterData({
                     ...createEmptyProfile(),

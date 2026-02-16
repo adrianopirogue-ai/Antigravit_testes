@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Trash2, ArrowRight } from 'lucide-react';
 
@@ -10,7 +10,7 @@ const Cart = ({ cartItems, setCartItems }) => {
     const [checkoutError, setCheckoutError] = useState('');
     const [checkoutSuccess, setCheckoutSuccess] = useState('');
     const [isCheckingOut, setIsCheckingOut] = useState(false);
-    const baseUrl = import.meta.env.BASE_URL || '/';
+    const navigate = useNavigate();
     const getPromoPercent = (item) => Number(item.promoPercent ?? item.promo_percent ?? 0);
 
     const applyPromo = (price, item) => {
@@ -145,7 +145,7 @@ const Cart = ({ cartItems, setCartItems }) => {
             setCartItems([]);
             setCheckoutSuccess('Pedido confirmado! Em instantes voce sera redirecionado para o catalogo.');
             setTimeout(() => {
-                window.location.href = `${baseUrl}catalog`;
+                navigate('/catalog', { replace: true });
             }, 2000);
         } catch (error) {
             console.error('Erro ao finalizar compra:', error);
