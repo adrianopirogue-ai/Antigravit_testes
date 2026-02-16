@@ -143,9 +143,10 @@ const Cart = ({ cartItems, setCartItems }) => {
             }
 
             setCartItems([]);
+            setCheckoutSuccess('Pedido confirmado! Em instantes voce sera redirecionado para o catalogo.');
             setTimeout(() => {
                 window.location.href = `${baseUrl}catalog`;
-            }, 1500);
+            }, 2000);
         } catch (error) {
             console.error('Erro ao finalizar compra:', error);
             setCheckoutError(error.message || 'Erro ao finalizar a compra.');
