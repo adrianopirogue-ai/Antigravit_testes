@@ -63,10 +63,10 @@ create policy "Authenticated upload medicine images"
 
 1. Supabase -> **Authentication** -> **URL Configuration**
 2. Configure:
-   - **Site URL**: `https://adrianopirogue-ai.github.io/Antigravit_testes`
+   - **Site URL**: `https://distribuidoramaisbrasil.com.br`
    - **Additional Redirect URLs**:
-     - `https://adrianopirogue-ai.github.io/Antigravit_testes/admin/reset-password`
-     - `https://adrianopirogue-ai.github.io/Antigravit_testes/cliente/reset-password`
+     - `https://distribuidoramaisbrasil.com.br/admin/reset-password`
+     - `https://distribuidoramaisbrasil.com.br/cliente/reset-password`
 
 ## Passo 7: Administradores que recebem pedidos
 
@@ -89,7 +89,7 @@ O envio de email usa a função `send-order-email` em `supabase/functions/send-o
    ```
 4. Configure as secrets:
    ```bash
-   supabase secrets set RESEND_API_KEY=... RESEND_FROM=seu@email.com SERVICE_ROLE_KEY=...
+   supabase secrets set RESEND_API_KEY=... RESEND_FROM=onboarding@resend.dev SERVICE_ROLE_KEY=...
    ```
    - `RESEND_API_KEY`: chave da Resend (https://resend.com)
    - `RESEND_FROM`: email de envio configurado na Resend

@@ -15,7 +15,6 @@ import Cart from './pages/Cart';
 function App() {
     const [cartItems, setCartItems] = useState([]);
 
-    console.log('🚀 App carregado. Base URL:', import.meta.env.BASE_URL);
 
     const addToCart = (product, quantity = 1, priceType = 'retail') => {
         const normalizedType = priceType === 'wholesale' ? 'wholesale' : 'retail';
@@ -33,7 +32,7 @@ function App() {
     };
 
     return (
-        <Router basename={import.meta.env.BASE_URL}>
+        <Router basename={import.meta.env.BASE_URL || '/'}>
             <div style={{ minHeight: '100vh', paddingBottom: '2rem' }}>
                 <Navbar cartCount={cartItems.length} />
 
