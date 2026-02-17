@@ -2,3 +2,4 @@ node_modules
 # Supabase temp files
 supabase/.temp/
 .vercel
+.env*.local
