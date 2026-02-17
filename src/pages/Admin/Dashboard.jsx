@@ -21,6 +21,9 @@ const AdminDashboard = () => {
     const [isLoggingIn, setIsLoggingIn] = useState(false);
     const [lowStockThreshold, setLowStockThreshold] = useState(100);
     const [expiryWindowDays, setExpiryWindowDays] = useState(30);
+    const [orders, setOrders] = useState([]);
+    const [ordersLoading, setOrdersLoading] = useState(false);
+    const [ordersError, setOrdersError] = useState('');
     const createEmptyForm = () => ({
         name: '',
         dosage: '',
@@ -86,6 +89,12 @@ const AdminDashboard = () => {
         }
     }, [session, activeTab]);
 
+    useEffect(() => {
+        if (session && activeTab === 'orders') {
+            fetchOrders();
+        }
+    }, [session, activeTab]);
+
     const fetchMedicines = async () => {
         try {
             const { data, error } = await supabase
@@ -123,6 +132,66 @@ const AdminDashboard = () => {
             }
         } finally {
             setCustomersLoading(false);
+        }
+    };
+
+    const fetchOrders = async () => {
+        setOrdersError('');
+        setOrdersLoading(true);
+        try {
+            const { data, error } = await supabase
+                .from('orders')
+                .select(`
+                    id, 
+                    total, 
+                    status, 
+                    created_at,
+                    user_id,
+                    customers (name, email, phone1)
+                `)
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+            setOrders(data || []);
+        } catch (error) {
+            console.error('Erro ao buscar pedidos:', error);
+            setOrdersError(error.message || 'Erro ao buscar pedidos.');
+        } finally {
+            setOrdersLoading(false);
+        }
+    };
+
+    const handleConfirmOrder = async (orderId) => {
+        if (!window.confirm('Deseja confirmar esta venda e finalizar a retirada do estoque?')) return;
+
+        try {
+            const { error } = await supabase
+                .from('orders')
+                .update({ status: 'completed' })
+                .eq('id', orderId);
+
+            if (error) throw error;
+            await fetchOrders();
+        } catch (error) {
+            console.error('Erro ao confirmar pedido:', error);
+            alert('Erro ao confirmar pedido.');
+        }
+    };
+
+    const handleCancelOrder = async (orderId) => {
+        if (!window.confirm('Deseja cancelar este pedido?')) return;
+
+        try {
+            const { error } = await supabase
+                .from('orders')
+                .update({ status: 'cancelled' })
+                .eq('id', orderId);
+
+            if (error) throw error;
+            await fetchOrders();
+        } catch (error) {
+            console.error('Erro ao cancelar pedido:', error);
+            alert('Erro ao cancelar pedido.');
         }
     };
 
@@ -647,6 +716,13 @@ const AdminDashboard = () => {
                         <Users size={18} /> Clientes
                     </button>
                     <button
+                        className={`btn ${activeTab === 'orders' ? 'btn-primary' : 'btn-outline'}`}
+                        style={{ justifyContent: 'flex-start', width: '100%' }}
+                        onClick={() => setActiveTab('orders')}
+                    >
+                        <DollarSign size={18} /> Vendas
+                    </button>
+                    <button
                         className={`btn ${activeTab === 'settings' ? 'btn-primary' : 'btn-outline'}`}
                         style={{ justifyContent: 'flex-start', width: '100%' }}
                         onClick={() => setActiveTab('settings')}
@@ -1044,6 +1120,113 @@ const AdminDashboard = () => {
                                             <tr>
                                                 <td colSpan="6" style={{ padding: '1rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>
                                                     Nenhum cliente encontrado.
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+                )}
+                {activeTab === 'orders' && (
+                    <div className="glass-card" style={{ padding: '2rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', gap: '1rem', flexWrap: 'wrap' }}>
+                            <div>
+                                <h2>Gestão de Vendas</h2>
+                                <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
+                                    {orders.length} pedidos registrados.
+                                </p>
+                            </div>
+                            <button type="button" className="btn btn-outline" onClick={fetchOrders}>
+                                Atualizar lista
+                            </button>
+                        </div>
+
+                        {ordersError && (
+                            <div style={{
+                                padding: '0.75rem 1rem',
+                                background: '#fee2e2',
+                                color: '#991b1b',
+                                borderRadius: '0.5rem',
+                                marginBottom: '1rem',
+                                fontSize: '0.9rem'
+                            }}>
+                                {ordersError}
+                            </div>
+                        )}
+
+                        {ordersLoading ? (
+                            <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
+                                <Loader2 size={32} color="var(--color-primary)" style={{ animation: 'spin 1s linear infinite' }} />
+                            </div>
+                        ) : (
+                            <div style={{ overflowX: 'auto' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                                    <thead>
+                                        <tr style={{ borderBottom: '2px solid var(--color-border)' }}>
+                                            <th style={{ padding: '0.85rem' }}>ID Pedido</th>
+                                            <th style={{ padding: '0.85rem' }}>Cliente</th>
+                                            <th style={{ padding: '0.85rem' }}>Data</th>
+                                            <th style={{ padding: '0.85rem' }}>Total</th>
+                                            <th style={{ padding: '0.85rem' }}>Status</th>
+                                            <th style={{ padding: '0.85rem' }}>Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {orders.map((order) => (
+                                            <tr key={order.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                                                <td style={{ padding: '0.85rem', fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
+                                                    #{order.id.slice(0, 8)}
+                                                </td>
+                                                <td style={{ padding: '0.85rem' }}>
+                                                    <div style={{ fontWeight: '600' }}>{order.customers?.name || 'Cliente não identificado'}</div>
+                                                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{order.customers?.email}</div>
+                                                </td>
+                                                <td style={{ padding: '0.85rem' }}>
+                                                    {new Date(order.created_at).toLocaleString('pt-BR')}
+                                                </td>
+                                                <td style={{ padding: '0.85rem', fontWeight: 'bold', color: 'var(--color-primary)' }}>
+                                                    R$ {Number(order.total).toFixed(2)}
+                                                </td>
+                                                <td style={{ padding: '0.85rem' }}>
+                                                    <span className={`badge ${order.status === 'completed' ? 'badge-success' :
+                                                            order.status === 'pending' ? 'badge-info' :
+                                                                'badge-warning'
+                                                        }`}>
+                                                        {order.status === 'completed' ? 'Concluído' :
+                                                            order.status === 'pending' ? 'Pendente' :
+                                                                order.status === 'cancelled' ? 'Cancelado' : order.status}
+                                                    </span>
+                                                </td>
+                                                <td style={{ padding: '0.85rem' }}>
+                                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                        {order.status === 'pending' && (
+                                                            <>
+                                                                <button
+                                                                    onClick={() => handleConfirmOrder(order.id)}
+                                                                    className="btn btn-primary"
+                                                                    style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
+                                                                >
+                                                                    Confirmar Venda
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleCancelOrder(order.id)}
+                                                                    className="btn btn-outline"
+                                                                    style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem', color: '#dc2626', borderColor: '#dc2626' }}
+                                                                >
+                                                                    Cancelar
+                                                                </button>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        {!orders.length && (
+                                            <tr>
+                                                <td colSpan="6" style={{ padding: '1rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                                                    Nenhum pedido encontrado.
                                                 </td>
                                             </tr>
                                         )}

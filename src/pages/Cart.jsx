@@ -101,6 +101,25 @@ const Cart = ({ cartItems, setCartItems }) => {
 
         setIsCheckingOut(true);
         try {
+            // 1. Validar estoque antes de processar
+            console.log('Validando estoque...');
+            const medicineIds = cartItems.map(item => item.id);
+            const { data: dbMedicines, error: stockQueryError } = await supabase
+                .from('medicines')
+                .select('id, name, stock')
+                .in('id', medicineIds);
+
+            if (stockQueryError) throw stockQueryError;
+
+            for (const item of cartItems) {
+                const dbItem = dbMedicines.find(m => m.id === item.id);
+                if (!dbItem) throw new Error(`Produto não encontrado: ${item.name}`);
+                if (dbItem.stock < item.quantity) {
+                    throw new Error(`Estoque insuficiente para ${item.name}. Disponível: ${dbItem.stock}`);
+                }
+            }
+
+            // 2. Criar o pedido
             const { data: orderData, error: orderError } = await supabase
                 .from('orders')
                 .insert([{
@@ -113,6 +132,7 @@ const Cart = ({ cartItems, setCartItems }) => {
 
             if (orderError) throw orderError;
 
+            // 3. Criar os itens do pedido
             const itemsPayload = cartItems.map((item) => ({
                 order_id: orderData.id,
                 medicine_id: item.id,
@@ -126,6 +146,24 @@ const Cart = ({ cartItems, setCartItems }) => {
 
             if (itemsError) throw itemsError;
 
+            // 4. Deduzir do estoque (Processo sequencial seguro neste contexto)
+            console.log('Deduzindo do estoque...');
+            for (const item of cartItems) {
+                const dbItem = dbMedicines.find(m => m.id === item.id);
+                const newStock = dbItem.stock - item.quantity;
+
+                const { error: updateStockError } = await supabase
+                    .from('medicines')
+                    .update({ stock: newStock })
+                    .eq('id', item.id);
+
+                if (updateStockError) {
+                    console.error(`Erro ao atualizar estoque de ${item.name}:`, updateStockError);
+                    // Continuamos para os outros itens, registrar o erro mas nao travar o sucesso do pedido já criado
+                }
+            }
+
+            // 5. Enviar email (opcional/segundo plano)
             try {
                 const { error: emailError } = await supabase.functions.invoke('send-order-email', {
                     body: { order_id: orderData.id }
