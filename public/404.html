@@ -5,8 +5,10 @@
     <title>Redirecting...</title>
     <script>
       (function () {
-        // GitHub Pages SPA fallback for project pages
-        var segmentCount = 1; // repo name is 1 segment: /Antigravit_testes/
+        // SPA fallback:
+        // GitHub Pages project pages need 1 segment, other hosts (Vercel) use 0.
+        var isGithubPages = window.location.hostname.endsWith('github.io');
+        var segmentCount = isGithubPages ? 1 : 0;
         var l = window.location;
         l.replace(
           l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
