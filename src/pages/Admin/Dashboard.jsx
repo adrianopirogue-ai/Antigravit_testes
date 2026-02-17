@@ -316,26 +316,39 @@ const AdminDashboard = () => {
         }
     };
 
+
     const handleLogin = async (e) => {
         e.preventDefault();
         setLoginError('');
         setIsLoggingIn(true);
 
         try {
+            console.log('Tentando login com Supabase Auth...');
             const { data, error } = await supabase.auth.signInWithPassword({
                 email,
                 password,
             });
 
-            if (error) throw error;
+            if (error) {
+                console.error('Erro retornado pelo Supabase:', error);
+                throw error;
+            }
 
+            console.log('Login bem-sucedido!');
             // Sessão será atualizada automaticamente via onAuthStateChange
         } catch (error) {
-            console.error('Erro no login:', error);
-            setLoginError(error.message || 'Erro ao fazer login. Verifique suas credenciais.');
+            console.error('Catch error no login:', error);
+            let message = error.message;
+
+            if (message === 'Failed to fetch') {
+                message = 'Erro de conexão (Failed to fetch). Isso geralmente ocorre por bloqueio de VPN, Firewall ou se as chaves do Supabase não foram configuradas no Vercel.';
+            }
+
+            setLoginError(message || 'Erro ao fazer login. Verifique suas credenciais.');
         } finally {
             setIsLoggingIn(false);
         }
+
     };
 
     const handleLogout = async () => {
@@ -491,7 +504,6 @@ const AdminDashboard = () => {
             .filter(Boolean)
             .some((value) => value.toString().toLowerCase().includes(term));
     });
-
     // Loading state
     if (loading) {
         return (
@@ -531,9 +543,14 @@ const AdminDashboard = () => {
                             color: '#991b1b',
                             borderRadius: '0.5rem',
                             marginBottom: '1rem',
-                            fontSize: '0.9rem'
+                            fontSize: '0.9rem',
+                            border: '1px solid #f87171',
+                            textAlign: 'left'
                         }}>
-                            {loginError}
+                            <strong>Erro:</strong> {loginError}
+                            <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', opacity: 0.8 }}>
+                                Dica: Verifique se o VPN do seu navegador está desligado.
+                            </div>
                         </div>
                     )}
 
@@ -649,307 +666,307 @@ const AdminDashboard = () => {
             <main style={{ flex: 1, minWidth: '300px' }} className="slide-in">
                 {activeTab === 'stock' && (
                     <>
-                {/* Statistics Cards */}
-                <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-                    gap: '1.5rem',
-                    marginBottom: '2rem'
-                }}>
-                    <div className="glass-card" style={{ padding: '1.5rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                            <span style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>Total de Produtos</span>
-                            <Package size={20} color="var(--color-primary)" />
-                        </div>
-                        <div style={{ fontSize: '2rem', fontWeight: '700', color: 'var(--color-primary)' }}>{stats.totalProducts}</div>
-                    </div>
-
-                    <div className="glass-card" style={{ padding: '1.5rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                            <span style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>Unidades em Estoque</span>
-                            <TrendingDown size={20} color="#3b82f6" />
-                        </div>
-                        <div style={{ fontSize: '2rem', fontWeight: '700', color: '#3b82f6' }}>{stats.totalStock.toLocaleString()}</div>
-                    </div>
-
-                    <div className="glass-card" style={{ padding: '1.5rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                            <span style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>Valor Total</span>
-                            <DollarSign size={20} color="#10b981" />
-                        </div>
-                        <div style={{ fontSize: '2rem', fontWeight: '700', color: '#10b981' }}>R$ {stats.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-                    </div>
-
-                    <div className="glass-card" style={{ padding: '1.5rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                            <span style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>Estoque Crítico</span>
-                            <AlertTriangle size={20} color="#ef4444" />
-                        </div>
-                        <div style={{ fontSize: '2rem', fontWeight: '700', color: '#ef4444' }}>{stats.criticalStock}</div>
-                    </div>
-                    <div className="glass-card" style={{ padding: '1.5rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                            <span style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>Vencendo em {expiryWindowDays} dias</span>
-                            <AlertTriangle size={20} color="#f59e0b" />
-                        </div>
-                        <div style={{ fontSize: '2rem', fontWeight: '700', color: '#f59e0b' }}>{stats.expiringSoon}</div>
-                    </div>
-                </div>
-
-                {/* Report Section */}
-                <div className="glass-card" style={{ padding: '2rem', marginBottom: '2rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-                        <h3 style={{ fontSize: '1.25rem', fontWeight: '700' }}>Relatórios</h3>
-                        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-                            <button onClick={handleDownloadReport} className="btn btn-outline" style={{ fontSize: '0.9rem' }}>
-                                <FileText size={18} /> Baixar Relatório Completo
-                            </button>
-                            <button onClick={handleDownloadCriticalReport} className="btn btn-outline" style={{ fontSize: '0.9rem' }}>
-                                <AlertTriangle size={18} /> Produtos Críticos
-                            </button>
-                            <button onClick={handlePrint} className="btn btn-outline" style={{ fontSize: '0.9rem' }}>
-                                <Printer size={18} /> Imprimir
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Expiring Soon */}
-                <div className="glass-card" style={{ padding: '2rem', marginBottom: '2rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', gap: '1rem', flexWrap: 'wrap' }}>
-                        <div>
-                            <h3 style={{ fontSize: '1.1rem', fontWeight: '700' }}>Próximos do vencimento ({expiryWindowDays} dias)</h3>
-                            <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>
-                                Produtos que vencem em até {expiryWindowDays} dias.
-                            </p>
-                        </div>
-                        <button
-                            type="button"
-                            className="btn btn-outline"
-                            onClick={fetchMedicines}
-                        >
-                            Atualizar lista
-                        </button>
-                    </div>
-
-                    {expiringSoon.length === 0 ? (
-                        <p style={{ color: 'var(--color-text-muted)' }}>Nenhum produto vencendo em breve.</p>
-                    ) : (
-                        <div style={{ display: 'grid', gap: '0.75rem' }}>
-                            {expiringSoon.map((med) => (
-                                <div key={med.id} style={{
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    alignItems: 'center',
-                                    padding: '0.75rem 1rem',
-                                    border: '1px solid var(--color-border)',
-                                    borderRadius: '0.75rem',
-                                    gap: '1rem',
-                                    flexWrap: 'wrap'
-                                }}>
-                                    <div>
-                                        <strong>{med.name}</strong>
-                                        <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
-                                            Vence em {med.daysUntil} dias - {formatDate(med.expiration_date)}
-                                        </div>
-                                    </div>
-                                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                                        {(med.promo_percent ?? 0) > 0 ? (
-                                            <>
-                                                <span className="badge badge-success">Promoção {med.promo_percent}%</span>
-                                                <button type="button" className="btn btn-outline" onClick={() => handleRemovePromo(med)}>
-                                                    Remover promo
-                                                </button>
-                                            </>
-                                        ) : (
-                                            <button type="button" className="btn btn-primary" onClick={() => handleApplyPromo(med, 10)}>
-                                                Aplicar -10%
-                                            </button>
-                                        )}
-                                    </div>
+                        {/* Statistics Cards */}
+                        <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                            gap: '1.5rem',
+                            marginBottom: '2rem'
+                        }}>
+                            <div className="glass-card" style={{ padding: '1.5rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                                    <span style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>Total de Produtos</span>
+                                    <Package size={20} color="var(--color-primary)" />
                                 </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
+                                <div style={{ fontSize: '2rem', fontWeight: '700', color: 'var(--color-primary)' }}>{stats.totalProducts}</div>
+                            </div>
 
-                {/* Low Stock */}
-                <div className="glass-card" style={{ padding: '2rem', marginBottom: '2rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', gap: '1rem', flexWrap: 'wrap' }}>
-                        <div>
-                            <h3 style={{ fontSize: '1.1rem', fontWeight: '700' }}>Estoque baixo (abaixo de {lowStockThreshold})</h3>
-                            <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>
-                                Produtos que precisam de reposição.
-                            </p>
-                        </div>
-                        <button type="button" className="btn btn-outline" onClick={fetchMedicines}>
-                            Atualizar lista
-                        </button>
-                    </div>
-
-                    {lowStockItems.length === 0 ? (
-                        <p style={{ color: 'var(--color-text-muted)' }}>Nenhum produto com estoque baixo.</p>
-                    ) : (
-                        <div style={{ display: 'grid', gap: '0.75rem' }}>
-                            {lowStockItems.map((med) => (
-                                <div key={med.id} style={{
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    alignItems: 'center',
-                                    padding: '0.75rem 1rem',
-                                    border: '1px solid var(--color-border)',
-                                    borderRadius: '0.75rem',
-                                    gap: '1rem',
-                                    flexWrap: 'wrap'
-                                }}>
-                                    <div>
-                                        <strong>{med.name}</strong>
-                                        <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
-                                            Estoque atual: {med.stock}
-                                        </div>
-                                    </div>
-                                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                                        <button type="button" className="btn btn-outline" onClick={() => handleAdjustStock(med, 10)}>
-                                            +10
-                                        </button>
-                                        <button type="button" className="btn btn-outline" onClick={() => handleAdjustStock(med, 50)}>
-                                            +50
-                                        </button>
-                                        <button type="button" className="btn btn-primary" onClick={() => openEditForm(med)}>
-                                            Editar
-                                        </button>
-                                    </div>
+                            <div className="glass-card" style={{ padding: '1.5rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                                    <span style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>Unidades em Estoque</span>
+                                    <TrendingDown size={20} color="#3b82f6" />
                                 </div>
-                            ))}
+                                <div style={{ fontSize: '2rem', fontWeight: '700', color: '#3b82f6' }}>{stats.totalStock.toLocaleString()}</div>
+                            </div>
+
+                            <div className="glass-card" style={{ padding: '1.5rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                                    <span style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>Valor Total</span>
+                                    <DollarSign size={20} color="#10b981" />
+                                </div>
+                                <div style={{ fontSize: '2rem', fontWeight: '700', color: '#10b981' }}>R$ {stats.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                            </div>
+
+                            <div className="glass-card" style={{ padding: '1.5rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                                    <span style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>Estoque Crítico</span>
+                                    <AlertTriangle size={20} color="#ef4444" />
+                                </div>
+                                <div style={{ fontSize: '2rem', fontWeight: '700', color: '#ef4444' }}>{stats.criticalStock}</div>
+                            </div>
+                            <div className="glass-card" style={{ padding: '1.5rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                                    <span style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>Vencendo em {expiryWindowDays} dias</span>
+                                    <AlertTriangle size={20} color="#f59e0b" />
+                                </div>
+                                <div style={{ fontSize: '2rem', fontWeight: '700', color: '#f59e0b' }}>{stats.expiringSoon}</div>
+                            </div>
                         </div>
-                    )}
-                </div>
 
-                {/* Stock Table */}
-                <div className="glass-card" style={{ padding: '2rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', gap: '1rem', flexWrap: 'wrap' }}>
-                        <h2>Gestão de Estoque</h2>
-                        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                            <button type="button" onClick={openAddForm} className="btn btn-primary" style={{ fontSize: '0.9rem' }}>
-                                Adicionar Produto
-                            </button>
-                            <span className="badge badge-info">{medicines.length} produtos</span>
+                        {/* Report Section */}
+                        <div className="glass-card" style={{ padding: '2rem', marginBottom: '2rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                                <h3 style={{ fontSize: '1.25rem', fontWeight: '700' }}>Relatórios</h3>
+                                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                                    <button onClick={handleDownloadReport} className="btn btn-outline" style={{ fontSize: '0.9rem' }}>
+                                        <FileText size={18} /> Baixar Relatório Completo
+                                    </button>
+                                    <button onClick={handleDownloadCriticalReport} className="btn btn-outline" style={{ fontSize: '0.9rem' }}>
+                                        <AlertTriangle size={18} /> Produtos Críticos
+                                    </button>
+                                    <button onClick={handlePrint} className="btn btn-outline" style={{ fontSize: '0.9rem' }}>
+                                        <Printer size={18} /> Imprimir
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                    </div>
 
-                    <div style={{ overflowX: 'auto' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                            <thead>
-                                <tr style={{ borderBottom: '2px solid var(--color-border)' }}>
-                                    <th style={{ padding: '1rem' }}>Produto</th>
-                                    <th style={{ padding: '1rem' }}>Tipo</th>
-                                    <th style={{ padding: '1rem' }}>Qtd.</th>
-                                    <th style={{ padding: '1rem' }}>Validade</th>
-                                    <th style={{ padding: '1rem' }}>Status</th>
-                                    <th style={{ padding: '1rem' }}>Promoção</th>
-                                    <th style={{ padding: '1rem' }}>Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {medicines.map(med => {
-                                    const promoPercent = Number(med.promo_percent || 0);
-                                    const daysUntil = getDaysUntilExpiration(med.expiration_date);
+                        {/* Expiring Soon */}
+                        <div className="glass-card" style={{ padding: '2rem', marginBottom: '2rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', gap: '1rem', flexWrap: 'wrap' }}>
+                                <div>
+                                    <h3 style={{ fontSize: '1.1rem', fontWeight: '700' }}>Próximos do vencimento ({expiryWindowDays} dias)</h3>
+                                    <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>
+                                        Produtos que vencem em até {expiryWindowDays} dias.
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    className="btn btn-outline"
+                                    onClick={fetchMedicines}
+                                >
+                                    Atualizar lista
+                                </button>
+                            </div>
 
-                                    return (
-                                        <tr key={med.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                                            <td style={{ padding: '1rem', fontWeight: '500' }}>
-                                                {med.name} <span style={{ fontSize: '0.8rem', color: 'gray' }}>({med.dosage})</span>
-                                            </td>
-                                            <td style={{ padding: '1rem' }}>{getMedicineTypeLabel(med.type)}</td>
-                                            <td style={{ padding: '1rem' }}>{med.stock}</td>
-                                            <td style={{ padding: '1rem' }}>
-                                                {med.expiration_date ? (
-                                                    <div>
-                                                        <div>{formatDate(med.expiration_date)}</div>
-                                                        {daysUntil !== null && (
-                                                            <div style={{ fontSize: '0.75rem', color: daysUntil <= expiryWindowDays ? '#f59e0b' : 'var(--color-text-muted)' }}>
-                                                                {daysUntil < 0 ? `Vencido há ${Math.abs(daysUntil)} dias` : `Faltam ${daysUntil} dias`}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                ) : (
-                                                    '-'
-                                                )}
-                                            </td>
-                                            <td style={{ padding: '1rem' }}>
-                                                <span className={`badge ${med.stock >= 500 ? 'badge-success' : med.stock >= lowStockThreshold ? 'badge-info' : 'badge-warning'}`}>
-                                                    {med.stock >= 500 ? 'Alto' : med.stock >= lowStockThreshold ? 'Normal' : 'Baixo'}
-                                                </span>
-                                            </td>
-                                            <td style={{ padding: '1rem' }}>
-                                                {promoPercent > 0 ? (
-                                                    <span className="badge badge-success">{promoPercent}%</span>
-                                                ) : (
-                                                    <span className="badge badge-info">-</span>
-                                                )}
-                                            </td>
-                                            <td style={{ padding: '1rem' }}>
-                                                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => openEditForm(med)}
-                                                        className="btn btn-outline"
-                                                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
-                                                    >
-                                                        Editar
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleAdjustStock(med, 10)}
-                                                        className="btn btn-outline"
-                                                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
-                                                    >
-                                                        +10
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleAdjustStock(med, -10)}
-                                                        className="btn btn-outline"
-                                                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
-                                                    >
-                                                        -10
-                                                    </button>
-                                                    {promoPercent > 0 ? (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleRemovePromo(med)}
-                                                            className="btn btn-outline"
-                                                            style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
-                                                        >
-                                                            Remover Promo
-                                                        </button>
-                                                    ) : (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleApplyPromo(med, 10)}
-                                                            className="btn btn-primary"
-                                                            style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
-                                                        >
-                                                            Promo -10%
-                                                        </button>
-                                                    )}
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleDeleteMedicine(med)}
-                                                        className="btn btn-outline"
-                                                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem', color: '#dc2626', borderColor: '#dc2626' }}
-                                                    >
-                                                        Remover
-                                                    </button>
+                            {expiringSoon.length === 0 ? (
+                                <p style={{ color: 'var(--color-text-muted)' }}>Nenhum produto vencendo em breve.</p>
+                            ) : (
+                                <div style={{ display: 'grid', gap: '0.75rem' }}>
+                                    {expiringSoon.map((med) => (
+                                        <div key={med.id} style={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            padding: '0.75rem 1rem',
+                                            border: '1px solid var(--color-border)',
+                                            borderRadius: '0.75rem',
+                                            gap: '1rem',
+                                            flexWrap: 'wrap'
+                                        }}>
+                                            <div>
+                                                <strong>{med.name}</strong>
+                                                <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
+                                                    Vence em {med.daysUntil} dias - {formatDate(med.expiration_date)}
                                                 </div>
-                                            </td>
+                                            </div>
+                                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                                                {(med.promo_percent ?? 0) > 0 ? (
+                                                    <>
+                                                        <span className="badge badge-success">Promoção {med.promo_percent}%</span>
+                                                        <button type="button" className="btn btn-outline" onClick={() => handleRemovePromo(med)}>
+                                                            Remover promo
+                                                        </button>
+                                                    </>
+                                                ) : (
+                                                    <button type="button" className="btn btn-primary" onClick={() => handleApplyPromo(med, 10)}>
+                                                        Aplicar -10%
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Low Stock */}
+                        <div className="glass-card" style={{ padding: '2rem', marginBottom: '2rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', gap: '1rem', flexWrap: 'wrap' }}>
+                                <div>
+                                    <h3 style={{ fontSize: '1.1rem', fontWeight: '700' }}>Estoque baixo (abaixo de {lowStockThreshold})</h3>
+                                    <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>
+                                        Produtos que precisam de reposição.
+                                    </p>
+                                </div>
+                                <button type="button" className="btn btn-outline" onClick={fetchMedicines}>
+                                    Atualizar lista
+                                </button>
+                            </div>
+
+                            {lowStockItems.length === 0 ? (
+                                <p style={{ color: 'var(--color-text-muted)' }}>Nenhum produto com estoque baixo.</p>
+                            ) : (
+                                <div style={{ display: 'grid', gap: '0.75rem' }}>
+                                    {lowStockItems.map((med) => (
+                                        <div key={med.id} style={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            padding: '0.75rem 1rem',
+                                            border: '1px solid var(--color-border)',
+                                            borderRadius: '0.75rem',
+                                            gap: '1rem',
+                                            flexWrap: 'wrap'
+                                        }}>
+                                            <div>
+                                                <strong>{med.name}</strong>
+                                                <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
+                                                    Estoque atual: {med.stock}
+                                                </div>
+                                            </div>
+                                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                                                <button type="button" className="btn btn-outline" onClick={() => handleAdjustStock(med, 10)}>
+                                                    +10
+                                                </button>
+                                                <button type="button" className="btn btn-outline" onClick={() => handleAdjustStock(med, 50)}>
+                                                    +50
+                                                </button>
+                                                <button type="button" className="btn btn-primary" onClick={() => openEditForm(med)}>
+                                                    Editar
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Stock Table */}
+                        <div className="glass-card" style={{ padding: '2rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', gap: '1rem', flexWrap: 'wrap' }}>
+                                <h2>Gestão de Estoque</h2>
+                                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                                    <button type="button" onClick={openAddForm} className="btn btn-primary" style={{ fontSize: '0.9rem' }}>
+                                        Adicionar Produto
+                                    </button>
+                                    <span className="badge badge-info">{medicines.length} produtos</span>
+                                </div>
+                            </div>
+
+                            <div style={{ overflowX: 'auto' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                                    <thead>
+                                        <tr style={{ borderBottom: '2px solid var(--color-border)' }}>
+                                            <th style={{ padding: '1rem' }}>Produto</th>
+                                            <th style={{ padding: '1rem' }}>Tipo</th>
+                                            <th style={{ padding: '1rem' }}>Qtd.</th>
+                                            <th style={{ padding: '1rem' }}>Validade</th>
+                                            <th style={{ padding: '1rem' }}>Status</th>
+                                            <th style={{ padding: '1rem' }}>Promoção</th>
+                                            <th style={{ padding: '1rem' }}>Ações</th>
                                         </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+                                    </thead>
+                                    <tbody>
+                                        {medicines.map(med => {
+                                            const promoPercent = Number(med.promo_percent || 0);
+                                            const daysUntil = getDaysUntilExpiration(med.expiration_date);
+
+                                            return (
+                                                <tr key={med.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                                                    <td style={{ padding: '1rem', fontWeight: '500' }}>
+                                                        {med.name} <span style={{ fontSize: '0.8rem', color: 'gray' }}>({med.dosage})</span>
+                                                    </td>
+                                                    <td style={{ padding: '1rem' }}>{getMedicineTypeLabel(med.type)}</td>
+                                                    <td style={{ padding: '1rem' }}>{med.stock}</td>
+                                                    <td style={{ padding: '1rem' }}>
+                                                        {med.expiration_date ? (
+                                                            <div>
+                                                                <div>{formatDate(med.expiration_date)}</div>
+                                                                {daysUntil !== null && (
+                                                                    <div style={{ fontSize: '0.75rem', color: daysUntil <= expiryWindowDays ? '#f59e0b' : 'var(--color-text-muted)' }}>
+                                                                        {daysUntil < 0 ? `Vencido há ${Math.abs(daysUntil)} dias` : `Faltam ${daysUntil} dias`}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            '-'
+                                                        )}
+                                                    </td>
+                                                    <td style={{ padding: '1rem' }}>
+                                                        <span className={`badge ${med.stock >= 500 ? 'badge-success' : med.stock >= lowStockThreshold ? 'badge-info' : 'badge-warning'}`}>
+                                                            {med.stock >= 500 ? 'Alto' : med.stock >= lowStockThreshold ? 'Normal' : 'Baixo'}
+                                                        </span>
+                                                    </td>
+                                                    <td style={{ padding: '1rem' }}>
+                                                        {promoPercent > 0 ? (
+                                                            <span className="badge badge-success">{promoPercent}%</span>
+                                                        ) : (
+                                                            <span className="badge badge-info">-</span>
+                                                        )}
+                                                    </td>
+                                                    <td style={{ padding: '1rem' }}>
+                                                        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => openEditForm(med)}
+                                                                className="btn btn-outline"
+                                                                style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
+                                                            >
+                                                                Editar
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleAdjustStock(med, 10)}
+                                                                className="btn btn-outline"
+                                                                style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
+                                                            >
+                                                                +10
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleAdjustStock(med, -10)}
+                                                                className="btn btn-outline"
+                                                                style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
+                                                            >
+                                                                -10
+                                                            </button>
+                                                            {promoPercent > 0 ? (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleRemovePromo(med)}
+                                                                    className="btn btn-outline"
+                                                                    style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
+                                                                >
+                                                                    Remover Promo
+                                                                </button>
+                                                            ) : (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleApplyPromo(med, 10)}
+                                                                    className="btn btn-primary"
+                                                                    style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
+                                                                >
+                                                                    Promo -10%
+                                                                </button>
+                                                            )}
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleDeleteMedicine(med)}
+                                                                className="btn btn-outline"
+                                                                style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem', color: '#dc2626', borderColor: '#dc2626' }}
+                                                            >
+                                                                Remover
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </>
                 )}
                 {activeTab === 'customers' && (
