@@ -45,6 +45,18 @@ const AdminDashboard = () => {
     const [imageFile, setImageFile] = useState(null);
     const [imagePreview, setImagePreview] = useState('');
     const fileInputRef = useRef(null);
+    const [isCustomerFormOpen, setIsCustomerFormOpen] = useState(false);
+    const [isSavingCustomer, setIsSavingCustomer] = useState(false);
+    const [customerFormError, setCustomerFormError] = useState('');
+    const createEmptyCustomerForm = () => ({
+        name: '',
+        email: '',
+        cpf_cnpj: '',
+        phone1: '',
+        municipio: '',
+        estado: '',
+    });
+    const [customerFormData, setCustomerFormData] = useState(createEmptyCustomerForm());
     const imageBucket = 'medicine-images';
     const maxImageSizeBytes = 5 * 1024 * 1024;
     const inputStyle = {
@@ -193,6 +205,58 @@ const AdminDashboard = () => {
         } catch (error) {
             console.error('Erro ao cancelar pedido:', error);
             alert('Erro ao cancelar pedido.');
+        }
+    };
+
+    const handleDeleteCustomer = async (id) => {
+        if (!window.confirm('Tem certeza que deseja remover este cliente?')) return;
+        try {
+            const { error } = await supabase
+                .from('customers')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw error;
+            fetchCustomers();
+        } catch (error) {
+            console.error('Erro ao remover cliente:', error);
+            alert('Erro ao remover cliente: ' + (error.message || 'Erro desconhecido'));
+        }
+    };
+
+    const openAddCustomerForm = () => {
+        setCustomerFormData(createEmptyCustomerForm());
+        setCustomerFormError('');
+        setIsCustomerFormOpen(true);
+    };
+
+    const closeCustomerForm = () => {
+        setIsCustomerFormOpen(false);
+    };
+
+    const handleCustomerFormChange = (field, value) => {
+        setCustomerFormData(prev => ({ ...prev, [field]: value }));
+    };
+
+    const handleSaveCustomer = async (e) => {
+        e.preventDefault();
+        setIsSavingCustomer(true);
+        setCustomerFormError('');
+
+        try {
+            const { error } = await supabase
+                .from('customers')
+                .insert([customerFormData]);
+
+            if (error) throw error;
+
+            setIsCustomerFormOpen(false);
+            fetchCustomers();
+        } catch (error) {
+            console.error('Erro ao salvar cliente:', error);
+            setCustomerFormError(error.message || 'Erro ao salvar cliente.');
+        } finally {
+            setIsSavingCustomer(false);
         }
     };
 
@@ -1157,6 +1221,7 @@ const AdminDashboard = () => {
                                             <th style={{ padding: '0.85rem' }}>Telefone</th>
                                             <th style={{ padding: '0.85rem' }}>Cidade/UF</th>
                                             <th style={{ padding: '0.85rem' }}>Cadastro</th>
+                                            <th style={{ padding: '0.85rem' }}>Ações</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -1169,6 +1234,15 @@ const AdminDashboard = () => {
                                                 <td style={{ padding: '0.85rem' }}>{customer.municipio}/{customer.estado}</td>
                                                 <td style={{ padding: '0.85rem' }}>
                                                     {customer.created_at ? new Date(customer.created_at).toLocaleDateString('pt-BR') : '-'}
+                                                </td>
+                                                <td style={{ padding: '0.85rem' }}>
+                                                    <button
+                                                        onClick={() => handleDeleteCustomer(customer.id)}
+                                                        className="btn btn-outline"
+                                                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', color: '#dc2626', borderColor: '#dc2626' }}
+                                                    >
+                                                        Remover
+                                                    </button>
                                                 </td>
                                             </tr>
                                         ))}
@@ -1520,6 +1594,115 @@ const AdminDashboard = () => {
                                     {isSaving ? 'Salvando...' : editingMedicine ? 'Salvar' : 'Adicionar'}
                                 </button>
                             </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+            {isCustomerFormOpen && (
+                <div style={{
+                    position: 'fixed',
+                    inset: 0,
+                    background: 'rgba(15, 23, 42, 0.45)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '1.5rem',
+                    zIndex: 60
+                }}>
+                    <div className="glass-card" style={{ width: '100%', maxWidth: '500px', padding: '2rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
+                            <h3 style={{ fontSize: '1.25rem', fontWeight: '700' }}>Novo Cliente</h3>
+                            <button type="button" onClick={closeCustomerForm} className="btn btn-outline" style={{ padding: '0.5rem' }}>
+                                Sair
+                            </button>
+                        </div>
+
+                        {customerFormError && (
+                            <div style={{
+                                padding: '0.75rem 1rem',
+                                background: '#fee2e2',
+                                color: '#991b1b',
+                                borderRadius: '0.5rem',
+                                marginBottom: '1rem',
+                                fontSize: '0.9rem'
+                            }}>
+                                {customerFormError}
+                            </div>
+                        )}
+
+                        <form onSubmit={handleSaveCustomer} style={{ display: 'grid', gap: '1rem' }}>
+                            <div>
+                                <label style={labelStyle}>Nome Completo</label>
+                                <input
+                                    type="text"
+                                    value={customerFormData.name}
+                                    onChange={(e) => handleCustomerFormChange('name', e.target.value)}
+                                    style={inputStyle}
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label style={labelStyle}>E-mail</label>
+                                <input
+                                    type="email"
+                                    value={customerFormData.email}
+                                    onChange={(e) => handleCustomerFormChange('email', e.target.value)}
+                                    style={inputStyle}
+                                    required
+                                />
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                <div>
+                                    <label style={labelStyle}>CPF ou CNPJ</label>
+                                    <input
+                                        type="text"
+                                        value={customerFormData.cpf_cnpj}
+                                        onChange={(e) => handleCustomerFormChange('cpf_cnpj', e.target.value)}
+                                        style={inputStyle}
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label style={labelStyle}>Telefone</label>
+                                    <input
+                                        type="text"
+                                        value={customerFormData.phone1}
+                                        onChange={(e) => handleCustomerFormChange('phone1', e.target.value)}
+                                        style={inputStyle}
+                                        required
+                                    />
+                                </div>
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                <div>
+                                    <label style={labelStyle}>Município</label>
+                                    <input
+                                        type="text"
+                                        value={customerFormData.municipio}
+                                        onChange={(e) => handleCustomerFormChange('municipio', e.target.value)}
+                                        style={inputStyle}
+                                    />
+                                </div>
+                                <div>
+                                    <label style={labelStyle}>UF</label>
+                                    <input
+                                        type="text"
+                                        maxLength="2"
+                                        value={customerFormData.estado}
+                                        onChange={(e) => handleCustomerFormChange('estado', e.target.value.toUpperCase())}
+                                        style={inputStyle}
+                                    />
+                                </div>
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={isSavingCustomer}
+                                className="btn btn-primary"
+                                style={{ marginTop: '1rem', padding: '0.85rem' }}
+                            >
+                                {isSavingCustomer ? 'Salvando...' : 'Cadastrar Cliente'}
+                            </button>
                         </form>
                     </div>
                 </div>
