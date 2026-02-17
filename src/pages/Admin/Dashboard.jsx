@@ -1169,9 +1169,9 @@ const AdminDashboard = () => {
                     <div className="glass-card" style={{ padding: '2rem' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', gap: '1rem', flexWrap: 'wrap' }}>
                             <div>
-                                <h2>Clientes Cadastrados</h2>
+                                <h2>Gestão de Clientes</h2>
                                 <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
-                                    {customers.length} clientes registrados.
+                                    {filteredCustomers.length} clientes encontrados.
                                 </p>
                             </div>
                             <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -1187,6 +1187,9 @@ const AdminDashboard = () => {
                                         minWidth: '220px'
                                     }}
                                 />
+                                <button type="button" className="btn btn-primary" onClick={openAddCustomerForm}>
+                                    Novo Cliente
+                                </button>
                                 <button type="button" className="btn btn-outline" onClick={fetchCustomers}>
                                     Atualizar
                                 </button>
