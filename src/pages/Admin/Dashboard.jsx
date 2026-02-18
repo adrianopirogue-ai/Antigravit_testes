@@ -152,20 +152,44 @@ const AdminDashboard = () => {
         setOrdersError('');
         setOrdersLoading(true);
         try {
-            const { data, error } = await supabase
+            // 1. Buscar apenas os dados da tabela orders
+            const { data: ordersData, error: ordersError } = await supabase
                 .from('orders')
-                .select(`
-                    id, 
-                    total, 
-                    status, 
-                    created_at,
-                    user_id,
-                    customers (name, email, phone1)
-                `)
+                .select('id, total, status, created_at, user_id')
                 .order('created_at', { ascending: false });
 
-            if (error) throw error;
-            setOrders(data || []);
+            if (ordersError) throw ordersError;
+
+            if (!ordersData || ordersData.length === 0) {
+                setOrders([]);
+                return;
+            }
+
+            // 2. Extrair user_ids únicos para buscar os perfis de clientes correspondentes
+            const userIds = [...new Set(ordersData.map(o => o.user_id).filter(Boolean))];
+
+            if (userIds.length > 0) {
+                // 3. Buscar nomes e emails da tabela customers usando user_id
+                const { data: customerProfiles, error: customersError } = await supabase
+                    .from('customers')
+                    .select('user_id, name, email, phone1')
+                    .in('user_id', userIds);
+
+                if (customersError) {
+                    console.error('Erro ao buscar perfis de clientes:', customersError);
+                    // Não travamos tudo se o join falhar, apenas mostramos os pedidos sem nome
+                }
+
+                // 4. Mesclar os dados
+                const mergedOrders = ordersData.map(order => ({
+                    ...order,
+                    customers: customerProfiles?.find(c => c.user_id === order.user_id) || null
+                }));
+
+                setOrders(mergedOrders);
+            } else {
+                setOrders(ordersData);
+            }
         } catch (error) {
             console.error('Erro ao buscar pedidos:', error);
             setOrdersError(error.message || 'Erro ao buscar pedidos.');
