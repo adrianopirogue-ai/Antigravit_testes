@@ -28,8 +28,8 @@
 
 2. Edite `.env.local` e substitua pelos valores copiados:
    ```
-   VITE_SUPABASE_URL=https://seu-projeto.supabase.co
-   VITE_SUPABASE_ANON_KEY=eyJhbG...sua-chave-aqui
+   VITE_SUPABASE_URL=https://cwuchkahhofcylqgolb.supabase.co
+   VITE_SUPABASE_ANON_KEY=sb_publishable_-42-1BHRCwiQdL2NkF12nQ_Uq-RPKvL
    ```
 
 3. **IMPORTANTE**: O arquivo `.env.local` já está no `.gitignore` (não será enviado ao GitHub)
