@@ -463,19 +463,27 @@ const AdminDashboard = () => {
                 requires_prescription: !!formData.requires_prescription,
             };
 
-            let error;
-            if (editingMedicine) {
-                ({ error } = await supabase
-                    .from('medicines')
-                    .update(payload)
-                    .eq('id', editingMedicine.id));
-            } else {
-                ({ error } = await supabase
-                    .from('medicines')
-                    .insert([payload]));
-            }
+            let { error } = editingMedicine
+                ? await supabase.from('medicines').update(payload).eq('id', editingMedicine.id)
+                : await supabase.from('medicines').insert([payload]);
 
-            if (error) throw error;
+            if (error) {
+                // Se o erro for especificamente a falta da coluna expiration_date no schema
+                if (error.message?.includes('expiration_date') || error.hint?.includes('expiration_date')) {
+                    console.warn('Coluna expiration_date nao encontrada. Tentando salvar sem validade...');
+                    const fallbackPayload = { ...payload };
+                    delete fallbackPayload.expiration_date;
+
+                    const { error: retryError } = editingMedicine
+                        ? await supabase.from('medicines').update(fallbackPayload).eq('id', editingMedicine.id)
+                        : await supabase.from('medicines').insert([fallbackPayload]);
+
+                    if (retryError) throw retryError;
+                    alert('Aviso: O produto foi salvo, mas o campo "Validade" foi ignorado porque a coluna nao existe no banco de dados.');
+                } else {
+                    throw error;
+                }
+            }
 
             await fetchMedicines();
             closeForm();
