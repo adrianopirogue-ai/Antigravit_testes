@@ -460,7 +460,8 @@ const AdminDashboard = () => {
                 wholesale_price: wholesaleValue,
                 description: formData.description.trim() ? formData.description.trim() : null,
                 image_url: imageUrl,
-                expiration_date: formData.expiration_date ? formData.expiration_date : null,
+                // expiration_date removido: coluna nao existe no banco Supabase atual
+                // Para reativar, execute supabase_schema.sql no Supabase SQL Editor
                 requires_prescription: !!formData.requires_prescription,
             };
 
