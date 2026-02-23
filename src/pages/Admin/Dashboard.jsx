@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+// BRASIL MAIS - VERSAO 1.0.4 - FIX PRODUCT SAVE FALLBACK
 import { Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { LayoutDashboard, Package, Users, Settings, LogOut, Loader2, FileText, Printer, TrendingDown, DollarSign, AlertTriangle } from 'lucide-react';
@@ -468,9 +469,13 @@ const AdminDashboard = () => {
                 : await supabase.from('medicines').insert([payload]);
 
             if (error) {
-                // Se o erro for especificamente a falta da coluna expiration_date no schema
-                if (error.message?.includes('expiration_date') || error.hint?.includes('expiration_date')) {
-                    console.warn('Coluna expiration_date nao encontrada. Tentando salvar sem validade...');
+                const errString = JSON.stringify(error).toLowerCase();
+                const isSchemaError = errString.includes('expiration_date') ||
+                    errString.includes('column') ||
+                    errString.includes('schema cache');
+
+                if (isSchemaError) {
+                    console.warn('Erro de schema detectado. Tentando salvar sem campos opcionais:', error);
                     const fallbackPayload = { ...payload };
                     delete fallbackPayload.expiration_date;
 
@@ -479,7 +484,7 @@ const AdminDashboard = () => {
                         : await supabase.from('medicines').insert([fallbackPayload]);
 
                     if (retryError) throw retryError;
-                    alert('Aviso: O produto foi salvo, mas o campo "Validade" foi ignorado porque a coluna nao existe no banco de dados.');
+                    alert('Aviso: O produto foi salvo, mas alguns campos (como Validade) foram ignorados porque nao existem no seu banco de dados Supabase.');
                 } else {
                     throw error;
                 }
